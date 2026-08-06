@@ -1,0 +1,40 @@
+{
+  "name": "bookforge",
+  "version": "0.1.0",
+  "description": "A local-first CLI foundation for generating technical books from YAML specifications.",
+  "type": "module",
+  "bin": {
+    "bookforge": "dist/cli/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli/index.ts",
+    "start": "node dist/cli/index.js",
+    "format": "prettier --write package.json tsconfig.json eslint.config.js .prettierrc.json README.md AGENTS.md src tests",
+    "format:check": "prettier --check package.json tsconfig.json eslint.config.js .prettierrc.json README.md AGENTS.md src tests",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "commander": "^14.0.0",
+    "js-yaml": "^4.1.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^24.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.39.0",
+    "@typescript-eslint/parser": "^8.39.0",
+    "eslint": "^9.32.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.6.2",
+    "tsx": "^4.20.3",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.66.0",
+    "vitest": "^3.2.4"
+  }
+}

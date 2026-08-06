@@ -1,0 +1,24 @@
+book:
+  id: modern-java
+  title: Modern Java and Object-Oriented Design
+  subtitle: Practical Java 8–25
+
+style:
+  tone: practical
+  includeInterviewQuestions: true
+  includeExercises: true
+
+output:
+  markdown: true
+  zip: true
+
+chapters:
+  - id: introduction
+    title: Modern Java in Context
+    targetWords: 3500
+  - id: oo
+    title: Object-Oriented Design
+    targetWords: 6000
+  - id: solid
+    title: SOLID Without Dogma
+    targetWords: 6000
