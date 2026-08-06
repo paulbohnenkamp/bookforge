@@ -5,9 +5,19 @@ import { AppError } from '../errors/app-error.js';
 import type { UsageMetadata } from '../llm/llm-provider.js';
 
 export type GenerationStatus =
-  'pending' | 'writing' | 'reviewing' | 'rewriting' | 'publishing' | 'published' | 'failed';
+  | 'pending'
+  | 'writing'
+  | 'reviewing'
+  | 'rewriting'
+  | 'validating'
+  | 'needs_review'
+  | 'approved'
+  | 'rejected'
+  | 'failed'
+  | 'publishing'
+  | 'published';
 
-export type GenerationStage = 'writer' | 'reviewer' | 'rewriter' | 'publisher';
+export type GenerationStage = 'writer' | 'reviewer' | 'rewriter' | 'validator' | 'publisher';
 
 export interface GenerationArtifacts {
   draft: string;
@@ -15,6 +25,9 @@ export interface GenerationArtifacts {
   rewritten: string;
   chapter: string;
   summary: string;
+  summaryJson: string;
+  qualityReportJson: string;
+  qualityReportMarkdown: string;
 }
 
 export interface GenerationState {
@@ -32,6 +45,15 @@ export interface GenerationState {
   publishedChecksum?: string;
   failedStage?: GenerationStage;
   errorSummary?: string;
+  qualityVerdict?: 'pass' | 'pass_with_warnings' | 'fail';
+  approval?: {
+    approvedAt: string;
+    chapterHash: string;
+    summaryHash: string;
+    approver?: string;
+    notes?: string;
+  };
+  rejection?: { rejectedAt: string; reason: string; by?: string; notes?: string };
 }
 
 export interface BookGenerationState {
@@ -85,7 +107,8 @@ export class GenerationStateStore {
     try {
       await access(this.statePath);
       const raw = await readFile(this.statePath, 'utf8');
-      return JSON.parse(raw) as StoredGenerationState;
+      const parsed = JSON.parse(raw) as StoredGenerationState;
+      return this.migrate(parsed);
     } catch (error) {
       const code = error instanceof Error && 'code' in error ? error.code : undefined;
       if (code === 'ENOENT') return undefined;
@@ -93,6 +116,22 @@ export class GenerationStateStore {
         cause: error,
       });
     }
+  }
+
+  private migrate(state: StoredGenerationState): StoredGenerationState {
+    const migrateChapter = (chapter: GenerationState): GenerationState => {
+      if (chapter.status !== 'published') return chapter;
+      return chapter.approval ? chapter : { ...chapter, status: 'needs_review' };
+    };
+    if (state.chapters) {
+      return {
+        ...state,
+        chapters: Object.fromEntries(
+          Object.entries(state.chapters).map(([key, value]) => [key, migrateChapter(value)]),
+        ),
+      };
+    }
+    return state.chapterNumber ? migrateChapter(state) : state;
   }
 
   public async save(state: GenerationState): Promise<void> {
@@ -125,6 +164,9 @@ export class GenerationStateStore {
       rewritten: path.join(chapterDirectory, 'rewritten.md'),
       chapter: path.join(chapterDirectory, 'chapter.md'),
       summary: path.join(chapterDirectory, 'summary.md'),
+      summaryJson: path.join(chapterDirectory, 'summary.json'),
+      qualityReportJson: path.join(chapterDirectory, 'quality-report.json'),
+      qualityReportMarkdown: path.join(chapterDirectory, 'quality-report.md'),
     };
   }
 }

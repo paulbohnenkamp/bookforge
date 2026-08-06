@@ -10,8 +10,8 @@
     "build": "tsc",
     "dev": "tsx src/cli/index.ts",
     "start": "node dist/cli/index.js",
-    "format": "prettier --write package.json tsconfig.json eslint.config.js .prettierrc.json README.md AGENTS.md src tests",
-    "format:check": "prettier --check package.json tsconfig.json eslint.config.js .prettierrc.json README.md AGENTS.md src tests",
+    "format": "prettier --write package.json tsconfig.json eslint.config.js .prettierrc.json README.md AGENTS.md src tests prompts docs templates",
+    "format:check": "prettier --check package.json tsconfig.json eslint.config.js .prettierrc.json README.md AGENTS.md src tests prompts docs templates",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
@@ -23,7 +23,9 @@
     "archiver": "^8.0.0",
     "commander": "^14.0.0",
     "js-yaml": "^4.1.0",
+    "marked": "^18.0.9",
     "openai": "^7.4.0",
+    "playwright": "^1.62.1",
     "zod": "^4.0.0"
   },
   "devDependencies": {

@@ -182,7 +182,7 @@ describe('full-book workflow', () => {
       providerName: 'mock',
     });
     const assembler = new BookAssembler(workspace.resolver, workspace.generatedDirectory);
-    const assembled = await assembler.assemble({ bookId: 'sample' });
+    const assembled = await assembler.assemble({ bookId: 'sample', includeNeedsReview: true });
     const combined = await readFile(assembled.combinedPath, 'utf8');
     const toc = await readFile(assembled.tableOfContentsPath, 'utf8');
     expect(combined).toContain('# Sample Book');
@@ -197,12 +197,13 @@ describe('full-book workflow', () => {
     expect(status.publishedChapters).toBe(3);
     expect(
       new BookStatusReporter(workspace.resolver, workspace.generatedDirectory).render(status),
-    ).toContain('3/3 published');
+    ).toContain('0 approved, 3 need human review');
 
     const exported = await new ZipExporter(workspace.resolver, workspace.generatedDirectory).export(
       {
         bookId: 'sample',
         title: 'Sample Book',
+        includeNeedsReview: true,
       },
     );
     const zipListing = (await execFileAsync('unzip', ['-Z1', exported.archivePath])).stdout
@@ -223,11 +224,13 @@ describe('full-book workflow', () => {
     const generator = createFullGenerator(workspace, new MockLlmProvider());
     await generator.generate({ bookId: 'sample', providerName: 'mock', from: 1, to: 2 });
     const assembler = new BookAssembler(workspace.resolver, workspace.generatedDirectory);
-    await expect(assembler.assemble({ bookId: 'sample' })).rejects.toThrow(
-      'missing published chapters 3',
-    );
-    const incomplete = await assembler.assemble({ bookId: 'sample', allowIncomplete: true });
-    expect(await readFile(incomplete.combinedPath, 'utf8')).toContain('Incomplete publication');
+    await expect(assembler.assemble({ bookId: 'sample' })).rejects.toThrow('not human-approved');
+    const incomplete = await assembler.assemble({
+      bookId: 'sample',
+      allowIncomplete: true,
+      includeNeedsReview: true,
+    });
+    expect(await readFile(incomplete.combinedPath, 'utf8')).toContain('Incomplete draft');
 
     const chapterPath = path.join(
       workspace.generatedDirectory,

@@ -99,8 +99,14 @@ describe('ChapterGenerator', () => {
       status: string;
       completedStages: string[];
     };
-    expect(state.status).toBe('published');
-    expect(state.completedStages).toEqual(['writer', 'reviewer', 'rewriter', 'publisher']);
+    expect(state.status).toBe('needs_review');
+    expect(state.completedStages).toEqual([
+      'writer',
+      'reviewer',
+      'rewriter',
+      'validator',
+      'publisher',
+    ]);
   });
 
   it('records a failed stage and resumes from the first incomplete stage', async () => {

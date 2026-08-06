@@ -1,4 +1,3 @@
-
 # BookForge V1.1 — Implementation Specification
 
 > Status: Build Specification
@@ -51,16 +50,17 @@ without modifying source code.
 # Architecture
 
 Book
- ├── Metadata
- ├── Style
- ├── Chapters
- └── Output
+├── Metadata
+├── Style
+├── Chapters
+└── Output
 
 Chapter
- ├── Draft
- ├── Review
- ├── Rewrite
- └── Published
+├── Draft
+├── Review
+├── Rewrite
+├── Automated validation
+└── Human review: needs_review → approved or rejected
 
 The engine understands Books and Chapters.
 It knows nothing about Java, Spring, React, or any specific technology.
@@ -70,23 +70,23 @@ It knows nothing about Java, Spring, React, or any specific technology.
 # Repository Layout
 
 book-forge/
-    docs/
-        specification.md
-    books/
-        modern-java/
-            book.yaml
-    prompts/
-        writer.md
-        reviewer.md
-        rewriter.md
-    generated/
-    src/
-        cli/
-        generator/
-        llm/
-        exporter/
-        util/
-    tests/
+docs/
+specification.md
+books/
+modern-java/
+book.yaml
+prompts/
+writer.md
+reviewer.md
+rewriter.md
+generated/
+src/
+cli/
+generator/
+llm/
+exporter/
+util/
+tests/
 
 ---
 
@@ -176,21 +176,11 @@ Produces the final version using reviewer feedback.
 
 # Pipeline
 
-Writer
+Writer → Reviewer → Rewriter → Quality validation → needs_review → Human approval
 
-↓
-
-Reviewer
-
-↓
-
-Rewriter
-
-↓
-
-Published
-
-No additional stages in V1.
+Only explicitly approved chapters may be assembled by default. Rejected chapters
+remain available for regeneration or manual correction. Quality reports are written
+as JSON and Markdown, and automated validation never implies technical authority.
 
 ---
 
@@ -254,32 +244,44 @@ generated/
 # Milestones
 
 M1
+
 - Project skeleton
 - CLI
 - YAML loader
 - Mock LLM
 
 M2
+
 - Writer
 - Reviewer
 - Rewriter
 
 M3
+
 - OpenAI provider
 
 M4
+
 - ZIP export
 - Resume
 - Combined markdown
 
 M5
+
+- Markdown and code quality reports
+- Optional Java, TypeScript, and Python syntax validation
+- Explicit human approval and rejection
+- Approval-aware assembly and ZIP export
+- CLI PDF export through an isolated Playwright renderer
+
+M5
+
 - Generate Modern Java volume
 
 ---
 
 # Future (Not MVP)
 
-- PDF
 - EPUB
 - Web UI
 - Background jobs

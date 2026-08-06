@@ -19,7 +19,11 @@ book specifications and editable prompt files, not in TypeScript modules.
 - Keep all OpenAI SDK imports, request construction, response parsing, and SDK
   error translation inside the OpenAI provider module. Never log or persist API
   keys.
-- Do not add providers, PDF/EPUB formats, databases, workers, or web application
-  code beyond the requested milestone.
+- Automated validation is not human approval. Preserve chapter hashes and approval
+  protection; content changes invalidate approval.
+- Do not claim code compiled unless a validator actually executed successfully, and
+  never execute generated programs during validation.
+- Keep PDF generation CLI-only, with renderer dependencies isolated from generation.
+- Do not add providers, EPUB formats, databases, workers, or web application code.
 - Run `npm run format:check`, `npm run lint`, `npm run typecheck`, and `npm test`
   before handing off changes.

@@ -14,6 +14,7 @@ import {
 } from './generation-state.js';
 import { AtomicFileWriter } from './atomic-file-writer.js';
 import { chapterDirectoryPath } from './paths.js';
+import { QualityValidator } from '../quality/quality-validator.js';
 
 export interface GenerationOptions {
   bookId: string;
@@ -30,7 +31,13 @@ export interface GenerationResult {
   resumed: boolean;
 }
 
-const orderedStages: GenerationStage[] = ['writer', 'reviewer', 'rewriter', 'publisher'];
+const orderedStages: GenerationStage[] = [
+  'writer',
+  'reviewer',
+  'rewriter',
+  'validator',
+  'publisher',
+];
 
 export class ChapterGenerator {
   public constructor(
@@ -42,6 +49,7 @@ export class ChapterGenerator {
     private readonly contextBuilder: PromptContextBuilder = new PromptContextBuilder(),
     private readonly fileWriter: AtomicFileWriter = new AtomicFileWriter(),
     private readonly logger: Logger = new ConsoleLogger(),
+    private readonly qualityValidator: QualityValidator = new QualityValidator(),
   ) {}
 
   public async generate(options: GenerationOptions): Promise<GenerationResult> {
@@ -58,9 +66,25 @@ export class ChapterGenerator {
     );
     const artifacts = GenerationStateStore.artifactPaths(chapterDirectory);
     const existing = await stateStore.loadChapter(resolved.bookId, resolved.chapterNumber);
+    if (
+      existing?.status === 'approved' &&
+      existing.approval &&
+      (await this.exists(artifacts.chapter))
+    ) {
+      const currentHash = createHash('sha256')
+        .update(await readFile(artifacts.chapter, 'utf8'))
+        .digest('hex');
+      if (currentHash !== existing.approval.chapterHash) {
+        existing.status = 'needs_review';
+        delete existing.approval;
+        await stateStore.save(existing);
+      }
+    }
 
-    if (!options.force && existing && (await this.isPublished(existing, resolved, artifacts))) {
-      this.logger.info(`Chapter ${resolved.chapterNumber} is already published; skipping.`);
+    if (!options.force && existing && (await this.isComplete(existing, resolved, artifacts))) {
+      this.logger.info(
+        `Chapter ${resolved.chapterNumber} is already ${existing.status}; skipping.`,
+      );
       return { state: existing, skipped: true, resumed: false };
     }
 
@@ -97,15 +121,34 @@ export class ChapterGenerator {
           options.previousChapters ?? [],
         );
       if (firstIncomplete <= 1)
-        await this.runReviewer(state, stateStore, resolved, resources, artifacts, options.signal);
+        await this.runReviewer(
+          state,
+          stateStore,
+          resolved,
+          resources,
+          artifacts,
+          options.signal,
+          options.previousChapters ?? [],
+        );
       if (firstIncomplete <= 2)
-        await this.runRewriter(state, stateStore, resolved, resources, artifacts, options.signal);
-      if (firstIncomplete <= 3) await this.runPublisher(state, stateStore, artifacts);
-      await this.ensureSummary(state, stateStore, resolved.chapter.title, artifacts);
-      state.status = 'published';
+        await this.runRewriter(
+          state,
+          stateStore,
+          resolved,
+          resources,
+          artifacts,
+          options.signal,
+          options.previousChapters ?? [],
+        );
+      if (firstIncomplete <= 3)
+        await this.runPublisher(state, stateStore, resolved.book, resolved.chapter, artifacts);
+      await this.ensureSummary(state, stateStore, resolved.chapter, artifacts);
+      state.status = 'needs_review';
       state.completionTime = new Date().toISOString();
       await stateStore.save(state);
-      this.logger.info(`Published chapter ${resolved.chapterNumber}: ${artifacts.chapter}`);
+      this.logger.info(
+        `Chapter ${resolved.chapterNumber} needs human review: ${artifacts.chapter}`,
+      );
       return { state, skipped: false, resumed };
     } catch (error) {
       const failedStage = this.stageForStatus(state.status);
@@ -166,12 +209,19 @@ export class ChapterGenerator {
     resources: PromptResources,
     artifacts: GenerationState['artifactPaths'],
     signal: AbortSignal | undefined,
+    previousChapters: Array<{ number: number; title: string; summary?: string }>,
   ): Promise<void> {
     state.status = 'reviewing';
     await stateStore.save(state);
     this.throwIfAborted(signal);
     const draft = await readFile(artifacts.draft, 'utf8');
-    const context = this.contextBuilder.buildReviewerContext(resolved.chapter, resources, draft);
+    const context = this.contextBuilder.buildReviewerContext(
+      resolved.book,
+      resolved.chapter,
+      resources,
+      draft,
+      previousChapters,
+    );
     const completion = await this.complete({
       prompt: this.contextBuilder.renderReviewer(context),
       systemInstruction:
@@ -189,6 +239,7 @@ export class ChapterGenerator {
     resources: PromptResources,
     artifacts: GenerationState['artifactPaths'],
     signal: AbortSignal | undefined,
+    previousChapters: Array<{ number: number; title: string; summary?: string }>,
   ): Promise<void> {
     state.status = 'rewriting';
     await stateStore.save(state);
@@ -198,10 +249,12 @@ export class ChapterGenerator {
       readFile(artifacts.review, 'utf8'),
     ]);
     const context = this.contextBuilder.buildRewriterContext(
+      resolved.book,
       resolved.chapter,
       resources,
       draft,
       review,
+      previousChapters,
     );
     const completion = await this.complete({
       prompt: this.contextBuilder.renderRewriter(context),
@@ -216,11 +269,38 @@ export class ChapterGenerator {
   private async runPublisher(
     state: GenerationState,
     stateStore: GenerationStateStore,
+    book: ResolvedChapter['book'],
+    chapter: ResolvedChapter['chapter'],
     artifacts: GenerationState['artifactPaths'],
   ): Promise<void> {
-    state.status = 'publishing';
+    state.status = 'validating';
     await stateStore.save(state);
-    await this.fileWriter.write(artifacts.chapter, await readFile(artifacts.rewritten, 'utf8'));
+    const rewritten = await readFile(artifacts.rewritten, 'utf8');
+    const report = await this.qualityValidator.validate(
+      book,
+      chapter,
+      state.chapterNumber,
+      state.bookId,
+      rewritten,
+      await readFile(artifacts.review, 'utf8'),
+    );
+    await this.fileWriter.write(
+      artifacts.qualityReportJson,
+      `${JSON.stringify(report, null, 2)}\n`,
+    );
+    await this.fileWriter.write(
+      artifacts.qualityReportMarkdown,
+      this.qualityValidator.renderMarkdown(report),
+    );
+    state.qualityVerdict = report.verdict;
+    if (report.summary.errors > 0)
+      throw new AppError(
+        'Automated quality validation found blocking errors.',
+        'Review quality-report.md and correct or regenerate the chapter.',
+      );
+    await this.fileWriter.write(artifacts.chapter, rewritten);
+    state.status = 'needs_review';
+    state.completedStages = this.withCompletedStage(state.completedStages, 'validator');
     state.completedStages = this.withCompletedStage(state.completedStages, 'publisher');
     await stateStore.save(state);
   }
@@ -241,13 +321,32 @@ export class ChapterGenerator {
   private async ensureSummary(
     state: GenerationState,
     stateStore: GenerationStateStore,
-    chapterTitle: string,
+    chapter: ResolvedChapter['chapter'],
     artifacts: GenerationState['artifactPaths'],
   ): Promise<void> {
-    if (!(await this.exists(artifacts.summary))) {
-      const summary = `# ${chapterTitle}\n\nThis chapter presents the core concepts, worked examples, common mistakes, best practices, interview questions, exercises, and key takeaways for its topic.\n`;
-      await this.fileWriter.write(artifacts.summary, summary);
-    }
+    const concepts = chapter.topics ?? chapter.objectives ?? [];
+    const canonical = chapter.canonicalExample;
+    const summary = [
+      `# ${chapter.title}`,
+      '',
+      `## Purpose\n${chapter.objectives?.join(' ') ?? `This chapter provides practical guidance for ${chapter.title}.`}`,
+      '',
+      `## Concepts Introduced\n${concepts.length > 0 ? concepts.map((item) => `- ${item}`).join('\n') : '- No explicit concepts were configured.'}`,
+      '',
+      `## Terminology and Examples\n${canonical ? `Canonical example: **${canonical.name}**. Entities: ${(canonical.entities ?? []).join(', ') || 'not specified'}.` : 'No canonical example was configured.'}`,
+      '',
+      `## Assumptions\n${canonical?.constraints?.map((item) => `- ${item}`).join('\n') || '- Use the book style guide and chapter specification as the editorial contract.'}`,
+      '',
+      `## Deferred Topics\n${chapter.topicsToAvoid?.map((item) => `- ${item}`).join('\n') || '- None specified.'}`,
+      '',
+      '## Continuity Risks\n- Keep terminology and canonical example APIs stable in later chapters.\n- Recheck version-specific claims and code examples during human review.',
+      '',
+    ].join('\n');
+    await this.fileWriter.write(artifacts.summary, summary);
+    await this.fileWriter.write(
+      artifacts.summaryJson,
+      `${JSON.stringify({ chapterId: chapter.id, title: chapter.title, purpose: chapter.objectives ?? [], concepts, terminology: canonical?.entities ?? [], canonicalExample: canonical ?? null, assumptions: canonical?.constraints ?? [], deferred: chapter.topicsToAvoid ?? [], continuityRisks: ['Keep terminology and canonical example APIs stable in later chapters.', 'Recheck version-specific claims and code examples during human review.'] }, null, 2)}\n`,
+    );
     const published = await readFile(artifacts.chapter, 'utf8');
     state.publishedChecksum = createHash('sha256').update(published).digest('hex');
     await stateStore.save(state);
@@ -331,7 +430,9 @@ export class ChapterGenerator {
     for (const [index, stage] of orderedStages.entries()) {
       if (
         !state.completedStages.includes(stage) ||
-        !(await this.exists(this.pathForStage(stage, artifacts)))
+        (stage === 'validator'
+          ? !(await this.isFreshQualityReport(artifacts))
+          : !(await this.exists(this.pathForStage(stage, artifacts))))
       )
         return index;
     }
@@ -348,26 +449,29 @@ export class ChapterGenerator {
         ? artifacts.review
         : stage === 'rewriter'
           ? artifacts.rewritten
-          : artifacts.chapter;
+          : stage === 'validator'
+            ? artifacts.qualityReportJson
+            : artifacts.chapter;
   }
 
   private withCompletedStage(stages: GenerationStage[], stage: GenerationStage): GenerationStage[] {
     return stages.includes(stage) ? stages : [...stages, stage];
   }
 
-  private async isPublished(
+  private async isComplete(
     state: GenerationState | undefined,
     resolved: ResolvedChapter,
     artifacts: GenerationState['artifactPaths'],
   ): Promise<boolean> {
     return Boolean(
       state &&
-      state.status === 'published' &&
+      (state.status === 'needs_review' || state.status === 'approved') &&
       state.bookId === resolved.bookId &&
       state.chapterNumber === resolved.chapterNumber &&
       state.completedStages.includes('publisher') &&
       (await this.exists(artifacts.chapter)) &&
-      (await this.exists(artifacts.summary)),
+      (await this.exists(artifacts.summary)) &&
+      (await this.isFreshQualityReport(artifacts)),
     );
   }
 
@@ -376,6 +480,7 @@ export class ChapterGenerator {
     if (status === 'writing') return 'writer';
     if (status === 'reviewing') return 'reviewer';
     if (status === 'rewriting') return 'rewriter';
+    if (status === 'validating') return 'validator';
     return 'publisher';
   }
 
@@ -383,6 +488,20 @@ export class ChapterGenerator {
     try {
       await access(filePath);
       return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private async isFreshQualityReport(
+    artifacts: GenerationState['artifactPaths'],
+  ): Promise<boolean> {
+    try {
+      const report = JSON.parse(await readFile(artifacts.qualityReportJson, 'utf8')) as {
+        chapterHash?: string;
+      };
+      const chapter = await readFile(artifacts.chapter, 'utf8');
+      return report.chapterHash === createHash('sha256').update(chapter).digest('hex');
     } catch {
       return false;
     }
@@ -397,6 +516,12 @@ export class ChapterGenerator {
       rewritten: path.relative(this.generatedDirectory, artifacts.rewritten),
       chapter: path.relative(this.generatedDirectory, artifacts.chapter),
       summary: path.relative(this.generatedDirectory, artifacts.summary),
+      summaryJson: path.relative(this.generatedDirectory, artifacts.summaryJson),
+      qualityReportJson: path.relative(this.generatedDirectory, artifacts.qualityReportJson),
+      qualityReportMarkdown: path.relative(
+        this.generatedDirectory,
+        artifacts.qualityReportMarkdown,
+      ),
     };
   }
 

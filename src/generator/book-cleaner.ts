@@ -73,7 +73,7 @@ export class BookCleaner {
   }
 
   private async assertSafePublishedChapter(state: GenerationState): Promise<void> {
-    if (state.status !== 'published') return;
+    if (state.status !== 'approved' && state.status !== 'needs_review') return;
     const chapterPath = path.join(this.generatedDirectory, state.artifactPaths.chapter);
     if (!(await this.exists(chapterPath))) return;
     if (!state.publishedChecksum) {

@@ -299,6 +299,38 @@ public void process() {
 }
 ```
 
+### Snippet intent
+
+Code fences may declare `intent=illustrative`, `intent=standalone`, or
+`intent=compilable`. A missing intent is treated as illustrative and reported for
+human review. Compilable multi-file examples should share an `example` identifier
+and declare filenames, for example:
+
+```java intent=compilable example=payment-result file=PaymentResult.java
+
+```
+
+Illustrative snippets explain omitted setup. Standalone snippets show the imports or
+project assumptions needed to adapt them. Compilable snippets must contain enough
+metadata and source for BookForge's optional validator to attempt compilation.
+
+### Canonical examples
+
+When a chapter specification defines a canonical example, treat its entities,
+terminology, types, and constraints as a continuity contract. Do not rename a class,
+field, method, or domain concept between snippets without explaining the change.
+
+Define each canonical type once in an authoritative form. If teaching a flawed
+legacy design or an intermediate refactoring, use a distinct type name or clearly
+label the code as a replacement and explain which API changed. Later snippets must
+not silently redefine the same class, record, method, or field with incompatible
+signatures. Before a chapter is considered ready for human review, inspect repeated
+types for compatible constructors, imports, inheritance, and supporting declarations.
+
+Illustrative code must identify omitted setup in nearby prose. Standalone code should
+show imports or state its project assumptions. Compilable code must provide enough
+metadata and compatible supporting files for a validator to attempt compilation.
+
 Prefer a comment that explains the omission:
 
 ```java
@@ -363,10 +395,10 @@ When comparing approaches, use a table or clear prose.
 
 Example:
 
-| Approach | Strength | Tradeoff |
-|---|---|---|
-| Constructor injection | Explicit required dependencies | Constructor can become large |
-| Field injection | Less visible boilerplate | Hidden dependencies and harder testing |
+| Approach              | Strength                       | Tradeoff                               |
+| --------------------- | ------------------------------ | -------------------------------------- |
+| Constructor injection | Explicit required dependencies | Constructor can become large           |
+| Field injection       | Less visible boilerplate       | Hidden dependencies and harder testing |
 
 Do not declare a winner without context.
 
@@ -392,7 +424,7 @@ A strong mistake section includes:
 
 Example structure:
 
-```markdown
+````markdown
 ### Storing Derived State
 
 A component stores both `quantity` and `totalPrice`, even though the total can be calculated from `quantity` and `unitPrice`.
@@ -404,7 +436,9 @@ Prefer calculating:
 ```tsx
 const totalPrice = quantity * unitPrice;
 ```
-```
+````
+
+````
 
 Avoid vague warnings such as:
 
@@ -619,6 +653,12 @@ The Reviewer should identify specific issues and locations.
 
 The Reviewer should not rewrite the entire chapter.
 
+The Reviewer should explicitly inspect code-example continuity, snippet intent,
+imports and supporting types, and whether illustrative omissions are explained.
+Findings should cite an exact heading and code location where practical. The
+Reviewer should report an actual word count and distinguish blocking correctness
+issues from heuristic editorial concerns.
+
 ---
 
 # 19. Rewrite Standards
@@ -787,7 +827,7 @@ Before publication, every chapter should satisfy:
 ## Key Takeaways
 
 - ...
-```
+````
 
 This skeleton is a default, not a rigid prison. Chapters may add sections when the subject requires them, but they should preserve the core learning rhythm.
 

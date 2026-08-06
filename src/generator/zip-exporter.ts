@@ -11,6 +11,7 @@ import { chapterDirectoryPath, filesystemSlug } from './paths.js';
 export interface ZipExportOptions {
   bookId: string;
   title: string;
+  includeNeedsReview?: boolean;
 }
 
 export interface ZipExportResult {
@@ -41,10 +42,13 @@ export class ZipExporter {
       const chapter = resolved.book.chapters[number - 1];
       if (!chapter) continue;
       const state = states.chapters[String(number)];
-      if (state?.status !== 'published') {
+      const eligible =
+        state?.status === 'approved' ||
+        (options.includeNeedsReview && state?.status === 'needs_review');
+      if (!eligible) {
         throw new AppError(
-          `Cannot export book '${options.bookId}': chapter ${number} is not published.`,
-          'Generate all chapters or assemble with --allow-incomplete before exporting.',
+          `Cannot export book '${options.bookId}': chapter ${number} is not human-approved.`,
+          'Approve every chapter or use --include-needs-review for a draft package.',
         );
       }
       const sourcePath = path.join(

@@ -65,6 +65,11 @@ interface ProviderFailure {
   requestId?: string;
 }
 
+function supportsTemperature(model: string): boolean {
+  const normalizedModel = model.toLowerCase();
+  return !/^gpt-5(?:[.-]|$)|^o[134](?:[.-]|$)/.test(normalizedModel);
+}
+
 export class OpenAiProvider implements LlmProvider {
   private readonly client: OpenAiResponsesClient;
   private readonly logger: Logger;
@@ -102,7 +107,9 @@ export class OpenAiProvider implements LlmProvider {
       model: this.config.model as string,
       input: request.prompt,
       ...(request.systemInstruction ? { instructions: request.systemInstruction } : {}),
-      temperature: this.config.temperature,
+      ...(supportsTemperature(this.config.model as string)
+        ? { temperature: this.config.temperature }
+        : {}),
     };
 
     for (let attempt = 0; ; attempt += 1) {
