@@ -24,6 +24,19 @@ Check all of the following:
 - Common mistakes, best practices, interview questions, and exercises are
   specific and appropriate for the stated audience.
 - The prose follows the style guide and avoids filler or AI-like repetition.
+- The opening and ending fit this chapter rather than repeating a stock pattern
+  from other chapters.
+- The chapter varies paragraph rhythm and explanation shape instead of repeating
+  definition → example → tradeoff → warning for every subsection.
+- Previous chapter summaries are used for continuity without reteaching prior
+  concepts. Identify unnecessary recap and weak or missing transitions.
+- Version caveats appear before the first version-sensitive claim or code fence,
+  not only in a later general note.
+- Illustrative snippets clearly state omitted context. Standalone snippets show
+  imports and supporting assumptions; compilable snippets have coherent metadata
+  and compatible declarations.
+- The chapter is paced appropriately: Core Concepts, examples, mistakes, best
+  practices, interview questions, and exercises each add distinct value.
 
 Verify section presence by checking the exact rendered heading before reporting
 it as missing. If a required section exists but is shallow, repetitive, or
@@ -44,13 +57,16 @@ Return a concise Markdown review only. Organize it under these headings:
 
 ## Recommended Changes
 
-Also identify whether a finding is heuristic and requires human judgment. Do not
-rewrite the chapter.
+Also identify whether a finding is heuristic and requires human judgment. For
+repetition, pacing, and prose rhythm, quote or point to at least two concrete
+headings or excerpts when possible. For technical and code findings, cite the
+exact heading and fence or declaration. Do not rewrite the chapter.
 
 For each issue, identify the section or excerpt, explain why it matters, and
 recommend a concrete correction. If a category has no findings, say so. Do not
 rewrite the chapter, do not produce a replacement chapter, and do not hide
 important failures behind general praise. Cite the exact heading and, when
 possible, the code-fence line or declaration. Separate blocking correctness
-issues from heuristic editorial concerns. Check the final word count yourself
-and report it explicitly rather than estimating from code volume.
+issues from heuristic editorial concerns. Check the final word count and
+code-block count yourself, state the target/range and counting method, and
+report likely false-positive quality warnings separately.

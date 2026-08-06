@@ -12,6 +12,8 @@ export interface AssemblyOptions {
   bookId: string;
   allowIncomplete?: boolean;
   includeNeedsReview?: boolean;
+  from?: number;
+  to?: number;
 }
 export interface AssemblyResult {
   bookId: string;
@@ -34,6 +36,7 @@ export class BookAssembler {
     const bookDirectory = path.join(this.generatedDirectory, options.bookId);
     const stateStore = new GenerationStateStore(path.join(bookDirectory, 'generation-state.json'));
     const bookState = await stateStore.loadBook(options.bookId);
+    const range = this.resolveRange(options.from, options.to, resolved.book.chapters.length);
     const included: Array<{
       number: number;
       id: string;
@@ -42,7 +45,7 @@ export class BookAssembler {
       state: GenerationState;
     }> = [];
     const missing: number[] = [];
-    for (let number = 1; number <= resolved.book.chapters.length; number += 1) {
+    for (let number = range.from; number <= range.to; number += 1) {
       const chapter = resolved.book.chapters[number - 1];
       if (!chapter) continue;
       const state = bookState.chapters[String(number)];
@@ -93,14 +96,15 @@ export class BookAssembler {
       resolved.book,
       toc,
       included,
-      missing.length > 0,
+      missing.length > 0 || range.from !== 1 || range.to !== resolved.book.chapters.length,
       Boolean(options.includeNeedsReview),
     );
     const readme = this.renderReadme(
       resolved.book,
-      bookState.chapters,
-      missing.length === 0,
+      included.map((item) => item.state),
+      missing.length === 0 && range.from === 1 && range.to === resolved.book.chapters.length,
       included.some((item) => item.state.status === 'needs_review'),
+      range,
     );
     const approval = this.renderApprovalStatus(included);
     const tableOfContentsPath = path.join(bookDirectory, 'TABLE_OF_CONTENTS.md'),
@@ -124,22 +128,25 @@ export class BookAssembler {
   private renderTableOfContents(
     chapters: Array<{ number: number; id: string; title: string }>,
   ): string {
-    return `# Table of Contents\n\n${chapters.map((chapter) => `${chapter.number}. [${chapter.title}](chapters/${chapterDirectoryName(chapter.number, chapter.id)}.md)`).join('\n')}\n`;
+    return `# Table of Contents\n\n${chapters.map((chapter) => `${chapter.number}. [${chapter.title}](#chapter-${chapterDirectoryName(chapter.number, chapter.id)})`).join('\n')}\n`;
   }
   private renderCombined(
     book: Book,
     toc: string,
-    chapters: Array<{ number: number; title: string; content: string }>,
+    chapters: Array<{ number: number; id: string; title: string; content: string }>,
     incomplete: boolean,
     needsReview: boolean,
   ): string {
     const notice = incomplete
-      ? '\n> **Incomplete draft:** configured chapters are missing.\n'
+      ? '\n> **Incomplete draft:** not all configured chapters are included.\n'
       : needsReview
         ? '\n> **Draft — Needs Human Review:** one or more included chapters have not been human-approved.\n'
         : '';
     const chapterContent = chapters
-      .map((chapter) => `\n\n---\n\n${this.demoteHeadings(chapter.content.trim())}`)
+      .map(
+        (chapter) =>
+          `\n\n---\n\n<a id="chapter-${chapterDirectoryName(chapter.number, chapter.id)}"></a>\n\n${this.demoteHeadings(chapter.content.trim())}`,
+      )
       .join('');
     const embeddedToc = toc.trim().replace(/^# /, '## ');
     return `# ${book.book.title}\n\n${book.book.subtitle ? `${book.book.subtitle}\n\n` : ''}${book.book.audience?.length ? `Audience: ${book.book.audience.join(', ')}\n\n` : ''}${notice}\n${embeddedToc}${chapterContent}\n`;
@@ -149,16 +156,16 @@ export class BookAssembler {
   }
   private renderReadme(
     book: Book,
-    states: Record<string, GenerationState>,
+    states: GenerationState[],
     complete: boolean,
     needsReview: boolean,
+    range: { from: number; to: number },
   ): string {
-    const providers =
-      [...new Set(Object.values(states).map((state) => state.provider))].join(', ') || 'unknown';
+    const providers = [...new Set(states.map((state) => state.provider))].join(', ') || 'unknown';
     const models =
       [
         ...new Set(
-          Object.values(states).flatMap((state) =>
+          states.flatMap((state) =>
             Object.values(state.usage ?? {}).flatMap((usage) =>
               usage?.model ? [usage.model] : [],
             ),
@@ -170,7 +177,11 @@ export class BookAssembler {
         ? 'complete but needs human review'
         : 'complete and human-approved'
       : 'incomplete';
-    return `# ${book.book.title}\n\n${book.book.subtitle ? `${book.book.subtitle}\n\n` : ''}Generated: ${new Date().toISOString()}\nStatus: ${status}\nProviders: ${providers}\nModels: ${models}\n\n> Automated generation and validation do not establish technical authority. Human technical review is required.\n\nRead individual chapters under \`chapters/\`, or read \`combined.md\` for the assembled book.\n`;
+    const scope =
+      range.from === 1 && range.to === book.chapters.length
+        ? ''
+        : `Included chapter range: ${range.from}–${range.to} of ${book.chapters.length}.\n`;
+    return `# ${book.book.title}\n\n${book.book.subtitle ? `${book.book.subtitle}\n\n` : ''}Generated: ${new Date().toISOString()}\nStatus: ${status}\n${scope}Providers: ${providers}\nModels: ${models}\n\n> Automated generation and validation do not establish technical authority. Human technical review is required.\n\nRead individual chapters under \`chapters/\`, or read \`combined.md\` for the assembled book.\n`;
   }
   private renderApprovalStatus(
     chapters: Array<{ number: number; title: string; state: GenerationState }>,
@@ -184,5 +195,26 @@ export class BookAssembler {
     } catch {
       return false;
     }
+  }
+
+  private resolveRange(
+    from: number | undefined,
+    to: number | undefined,
+    total: number,
+  ): { from: number; to: number } {
+    const start = from ?? 1;
+    const end = to ?? total;
+    if (
+      !Number.isInteger(start) ||
+      !Number.isInteger(end) ||
+      start < 1 ||
+      end < 1 ||
+      start > total ||
+      end > total
+    )
+      throw new AppError(`Chapter range ${start}-${end} is outside the book's 1-${total} range.`);
+    if (start > end)
+      throw new AppError(`Chapter range start ${start} cannot be greater than end ${end}.`);
+    return { from: start, to: end };
   }
 }

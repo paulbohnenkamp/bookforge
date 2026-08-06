@@ -194,7 +194,13 @@ bookforge generate modern-java
 
 bookforge assemble modern-java
 
+bookforge assemble modern-java --from 1 --to 3 --include-needs-review --allow-incomplete
+
 bookforge export modern-java
+
+bookforge export modern-java --format pdf --from 1 --to 3 --include-needs-review
+
+bookforge export modern-java --format zip --from 1 --to 3 --include-needs-review
 
 bookforge clean modern-java
 
