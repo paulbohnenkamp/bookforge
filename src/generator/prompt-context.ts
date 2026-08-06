@@ -17,6 +17,7 @@ export interface WriterPromptContext {
   includeExercises: boolean;
   chapter: Chapter;
   allChapters: Array<{ number: number; id: string; title: string }>;
+  previousChapters: Array<{ number: number; title: string; summary?: string }>;
   styleGuide: string;
   prompt: string;
 }
@@ -41,6 +42,7 @@ export class PromptContextBuilder {
     book: Book,
     chapter: Chapter,
     resources: PromptResources,
+    previousChapters: Array<{ number: number; title: string; summary?: string }> = [],
   ): WriterPromptContext {
     this.requireResources(resources, ['styleGuide', 'writerPrompt']);
     return {
@@ -56,6 +58,7 @@ export class PromptContextBuilder {
         id: item.id,
         title: item.title,
       })),
+      previousChapters,
       styleGuide: resources.styleGuide,
       prompt: resources.writerPrompt,
     };
@@ -103,6 +106,7 @@ export class PromptContextBuilder {
       `Style: tone=${context.tone}; interview questions=${context.includeInterviewQuestions}; exercises=${context.includeExercises}`,
       `Chapter specification: ${JSON.stringify(context.chapter)}`,
       `All chapter titles: ${JSON.stringify(context.allChapters)}`,
+      `Previously published chapter summaries: ${JSON.stringify(context.previousChapters)}`,
       `Style guide:\n${context.styleGuide}`,
       `Writer prompt:\n${context.prompt}`,
     ].join('\n\n');
