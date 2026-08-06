@@ -16,7 +16,12 @@ import type { Logger } from '../src/logging/logger.js';
 const apiKey = 'secret-test-key';
 
 class FakeResponsesClient implements OpenAiResponsesClient {
-  public readonly requests: Array<{ model: string; input: string; instructions?: string }> = [];
+  public readonly requests: Array<{
+    model: string;
+    input: string;
+    instructions?: string;
+    temperature?: number;
+  }> = [];
   private readonly results: Array<OpenAiResponse | Error>;
 
   public constructor(...results: Array<OpenAiResponse | Error>) {
@@ -28,6 +33,7 @@ class FakeResponsesClient implements OpenAiResponsesClient {
       model: string;
       input: string;
       instructions?: string;
+      temperature?: number;
     }): Promise<OpenAiResponse> => {
       this.requests.push(request);
       const result = this.results.shift();
@@ -80,6 +86,19 @@ function provider(
   );
 }
 
+function providerForModel(client: OpenAiResponsesClient, model: string): OpenAiProvider {
+  return new OpenAiProvider(
+    {
+      apiKey,
+      model,
+      temperature: 0.2,
+      maxRetries: 0,
+      requestTimeoutMs: 1000,
+    },
+    { client, sleep: async () => undefined, random: () => 0 },
+  );
+}
+
 describe('OpenAiProvider', () => {
   it.each(['Writer', 'Reviewer', 'Rewriter'])('returns usable %s output', async (stage) => {
     const client = new FakeResponsesClient(response(`# ${stage} output`));
@@ -93,6 +112,16 @@ describe('OpenAiProvider', () => {
       input: `${stage} context`,
       instructions: `${stage} system instruction`,
     });
+  });
+
+  it('omits temperature for reasoning models and retains it for sampling models', async () => {
+    const reasoningClient = new FakeResponsesClient(response('reasoning output'));
+    await providerForModel(reasoningClient, 'gpt-5.6-luna').complete('prompt');
+    expect(reasoningClient.requests[0]).not.toHaveProperty('temperature');
+
+    const samplingClient = new FakeResponsesClient(response('sampling output'));
+    await providerForModel(samplingClient, 'gpt-4o-mini').complete('prompt');
+    expect(samplingClient.requests[0]).toHaveProperty('temperature', 0.2);
   });
 
   it('rejects empty and malformed responses', async () => {

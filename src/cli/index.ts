@@ -13,6 +13,14 @@ import { BookStatusReporter } from '../generator/book-status.js';
 import { BookAssembler } from '../generator/book-assembler.js';
 import { ZipExporter } from '../generator/zip-exporter.js';
 import { BookCleaner } from '../generator/book-cleaner.js';
+import { HumanReviewService } from '../generator/human-review.js';
+import { QualityValidator } from '../quality/quality-validator.js';
+import { GenerationStateStore } from '../generator/generation-state.js';
+import { chapterDirectoryPath, filesystemSlug } from '../generator/paths.js';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+import { AtomicFileWriter } from '../generator/atomic-file-writer.js';
+import { PlaywrightPdfRenderer, defaultPdfCss } from '../export/pdf-renderer.js';
 
 interface GenerateCommandOptions {
   chapter?: string;
@@ -26,10 +34,30 @@ interface GenerateCommandOptions {
 
 interface StatusCommandOptions {
   json: boolean;
+  verbose: boolean;
 }
 
 interface AssembleCommandOptions {
   allowIncomplete: boolean;
+  includeNeedsReview: boolean;
+}
+
+interface ExportCommandOptions {
+  format: 'zip' | 'pdf' | 'all';
+  includeNeedsReview: boolean;
+}
+interface ReviewCommandOptions {
+  chapter: string;
+  by?: string;
+  notes?: string;
+  reason?: string;
+}
+interface QualityCommandOptions {
+  chapter?: string;
+  all: boolean;
+  strict: boolean;
+  json: boolean;
+  verbose: boolean;
 }
 
 interface CleanCommandOptions {
@@ -74,7 +102,7 @@ export function createCli(): Command {
     .option('--from <number>', 'first one-based chapter number in a range')
     .option('--to <number>', 'last one-based chapter number in a range')
     .option('--provider <provider>', 'LLM provider: mock or openai')
-    .option('--force', 'regenerate all stages and back up an existing published chapter')
+    .option('--force', 'regenerate all stages and back up existing chapter content')
     .option('--verbose', 'enable debug logging')
     .option('--continue-on-error', 'continue to later chapters after a chapter failure')
     .action(async (bookId: string, options: GenerateCommandOptions) => {
@@ -145,6 +173,7 @@ export function createCli(): Command {
     .description('Show generation status for every chapter in a book')
     .argument('<bookId>', 'book identifier')
     .option('--json', 'print machine-readable JSON')
+    .option('--verbose', 'show quality and approval details')
     .action(async (bookId: string, options: StatusCommandOptions) => {
       const config = loadConfig(process.env);
       const status = await new BookStatusReporter(
@@ -162,16 +191,163 @@ export function createCli(): Command {
     });
 
   program
+    .command('review-status')
+    .description('Show human review status for a book')
+    .argument('<bookId>')
+    .action(async (bookId: string) => {
+      const config = loadConfig(process.env);
+      const reporter = new BookStatusReporter(
+        new BookResolver(config.booksDirectory),
+        config.generatedDirectory,
+      );
+      console.log(reporter.render(await reporter.getStatus(bookId)));
+    });
+
+  program
+    .command('approve')
+    .description('Approve a chapter after human review')
+    .argument('<bookId>')
+    .requiredOption('--chapter <number>')
+    .option('--by <name>')
+    .option('--notes <text>')
+    .action(async (bookId: string, options: ReviewCommandOptions) => {
+      const config = loadConfig(process.env);
+      await new HumanReviewService(
+        new BookResolver(config.booksDirectory),
+        config.generatedDirectory,
+      ).approve(
+        bookId,
+        parsePositiveNumber(options.chapter, '--chapter') ?? 0,
+        options.by,
+        options.notes,
+      );
+      console.log(`Approved chapter ${options.chapter}.`);
+    });
+  program
+    .command('reject')
+    .description('Reject a chapter after human review')
+    .argument('<bookId>')
+    .requiredOption('--chapter <number>')
+    .requiredOption('--reason <text>')
+    .option('--by <name>')
+    .option('--notes <text>')
+    .action(async (bookId: string, options: ReviewCommandOptions) => {
+      const config = loadConfig(process.env);
+      await new HumanReviewService(
+        new BookResolver(config.booksDirectory),
+        config.generatedDirectory,
+      ).reject(
+        bookId,
+        parsePositiveNumber(options.chapter, '--chapter') ?? 0,
+        options.reason ?? '',
+        options.by,
+        options.notes,
+      );
+      console.log(`Rejected chapter ${options.chapter}.`);
+    });
+
+  program
+    .command('quality')
+    .description('Validate generated chapter quality')
+    .argument('<bookId>')
+    .option('--chapter <number>')
+    .option('--all')
+    .option('--strict')
+    .option('--json')
+    .option('--verbose')
+    .action(async (bookId: string, options: QualityCommandOptions) => {
+      const config = loadConfig(process.env);
+      const resolver = new BookResolver(config.booksDirectory);
+      const resolved = await resolver.resolve(bookId, 1);
+      const numbers = options.all
+        ? resolved.book.chapters.map((_chapter, index) => index + 1)
+        : [parsePositiveNumber(options.chapter, '--chapter') ?? 0];
+      if (!options.all && !options.chapter)
+        throw new AppError('quality requires --chapter or --all.');
+      const store = new GenerationStateStore(
+        path.join(config.generatedDirectory, bookId, 'generation-state.json'),
+      );
+      const validator = new QualityValidator();
+      const reports = [];
+      for (const number of numbers) {
+        const chapter = resolved.book.chapters[number - 1];
+        if (!chapter) throw new AppError(`Chapter ${number} does not exist.`);
+        const directory = chapterDirectoryPath(
+          config.generatedDirectory,
+          bookId,
+          number,
+          chapter.id,
+        );
+        const finalPath = path.join(directory, 'chapter.md');
+        const rewrittenPath = path.join(directory, 'rewritten.md');
+        let markdown: string;
+        try {
+          markdown = await readFile(finalPath, 'utf8');
+        } catch {
+          markdown = await readFile(rewrittenPath, 'utf8');
+        }
+        const report = await validator.validate(
+          resolved.book,
+          chapter,
+          number,
+          bookId,
+          markdown,
+          await readFile(path.join(directory, 'review.md'), 'utf8').catch(() => ''),
+        );
+        if (options.strict && report.summary.warnings > 0) report.verdict = 'fail';
+        const writer = new AtomicFileWriter();
+        await writer.write(
+          path.join(directory, 'quality-report.json'),
+          `${JSON.stringify(report, null, 2)}\n`,
+        );
+        await writer.write(
+          path.join(directory, 'quality-report.md'),
+          validator.renderMarkdown(report),
+        );
+        const state = await store.loadChapter(bookId, number);
+        if (state) {
+          if (state.approval && state.approval.chapterHash !== report.chapterHash) {
+            state.status = 'needs_review';
+            delete state.approval;
+          }
+          state.qualityVerdict = report.verdict;
+          if (report.verdict === 'fail') state.status = 'failed';
+          else if (state.status === 'failed' || state.status === 'rejected')
+            state.status = 'needs_review';
+          await store.save(state);
+        }
+        reports.push(report);
+      }
+      if (options.json) console.log(JSON.stringify(reports, null, 2));
+      else
+        console.log(
+          reports
+            .map(
+              (report) =>
+                `Chapter ${report.chapterNumber}: ${report.verdict} (${report.summary.errors} errors, ${report.summary.warnings} warnings)`,
+            )
+            .join('\n'),
+        );
+      if (reports.some((report) => report.verdict === 'fail'))
+        throw new AppError('Quality validation failed for one or more chapters.');
+    });
+
+  program
     .command('assemble')
     .description('Assemble published chapters into Markdown publication files')
     .argument('<bookId>', 'book identifier')
-    .option('--allow-incomplete', 'assemble only published chapters and mark output incomplete')
+    .option('--allow-incomplete', 'assemble with missing chapters and mark output incomplete')
+    .option('--include-needs-review', 'include generated chapters that lack human approval')
     .action(async (bookId: string, options: AssembleCommandOptions) => {
       const config = loadConfig(process.env);
       const result = await new BookAssembler(
         new BookResolver(config.booksDirectory),
         config.generatedDirectory,
-      ).assemble({ bookId, allowIncomplete: options.allowIncomplete });
+      ).assemble({
+        bookId,
+        allowIncomplete: options.allowIncomplete,
+        includeNeedsReview: options.includeNeedsReview,
+      });
       console.log(
         `Assembled ${result.publishedChapters.length} chapter(s): ${result.combinedPath}`,
       );
@@ -179,20 +355,47 @@ export function createCli(): Command {
 
   program
     .command('export')
-    .description('Export the complete assembled book as a ZIP archive')
+    .description('Export the assembled book as PDF, ZIP, or both')
     .argument('<bookId>', 'book identifier')
-    .action(async (bookId: string) => {
+    .option('--format <format>', 'pdf, zip, or all', 'zip')
+    .option('--include-needs-review', 'export a draft that has not been human-approved')
+    .action(async (bookId: string, options: ExportCommandOptions) => {
       const config = loadConfig(process.env);
       const resolved = await new BookResolver(config.booksDirectory).resolve(bookId, 1);
+      const includeNeedsReview = options.includeNeedsReview === true;
       await new BookAssembler(
         new BookResolver(config.booksDirectory),
         config.generatedDirectory,
-      ).assemble({ bookId });
-      const result = await new ZipExporter(
-        new BookResolver(config.booksDirectory),
-        config.generatedDirectory,
-      ).export({ bookId, title: resolved.book.book.title });
-      console.log(`Exported ${result.entries.length} entries: ${result.archivePath}`);
+      ).assemble({
+        bookId,
+        includeNeedsReview,
+        ...(includeNeedsReview ? { allowIncomplete: true } : {}),
+      });
+      if (options.format !== 'pdf' && options.format !== 'zip' && options.format !== 'all')
+        throw new AppError('--format must be pdf, zip, or all.');
+      if (options.format === 'zip' || options.format === 'all') {
+        const result = await new ZipExporter(
+          new BookResolver(config.booksDirectory),
+          config.generatedDirectory,
+        ).export({ bookId, title: resolved.book.book.title, includeNeedsReview });
+        console.log(`Exported ${result.entries.length} entries: ${result.archivePath}`);
+      }
+      if (options.format === 'pdf' || options.format === 'all') {
+        const outputPath = path.join(
+          config.generatedDirectory,
+          bookId,
+          'exports',
+          `${filesystemSlug(resolved.book.book.title).toLowerCase()}.pdf`,
+        );
+        await new PlaywrightPdfRenderer().render({
+          markdownPath: path.join(config.generatedDirectory, bookId, 'combined.md'),
+          outputPath,
+          title: resolved.book.book.title,
+          draft: includeNeedsReview,
+          cssPath: defaultPdfCss(process.cwd()),
+        });
+        console.log(`Exported PDF: ${outputPath}`);
+      }
     });
 
   program

@@ -1,57 +1,54 @@
 # BookForge
 
-BookForge is a local-first TypeScript CLI for working with generic technical-book
-specifications. It supports sequential chapter generation, full-book assembly,
-status reporting, and publication ZIP export.
+BookForge is a local-first TypeScript CLI for generating generic technical books.
+The pipeline is sequential and provider-independent:
 
-## Requirements and setup
+```text
+Generate → Review → Rewrite → Quality validation → Needs human review
+→ Human approval → Assemble → PDF or ZIP export
+```
 
-- Node.js 22 or newer
-- npm
+Automated validation is not human approval. Generated technical content remains a
+draft until a person explicitly approves it.
+
+## Setup
+
+Requires Node.js 22+ and npm.
 
 ```bash
 npm install
+npx playwright install chromium
 npm run build
 ```
 
-BookForge does not load `.env` automatically. Copy `.env.example` if useful, then
-export its values in the shell. For Bash or Zsh:
+BookForge does not load `.env` automatically. Export values in the shell, or use:
 
 ```bash
 cp .env.example .env
-set -a
-source .env
-set +a
+set -a; source .env; set +a
 ```
 
-Never commit a file containing `OPENAI_API_KEY`.
+Never commit `OPENAI_API_KEY`.
 
-## Complete mock workflow
+## Mock workflow
 
 ```bash
 npm run dev -- validate books/modern-java/book.yaml
-npm run dev -- generate modern-java --provider mock
+npm run dev -- generate modern-java --chapter 2 --provider mock
+npm run dev -- quality modern-java --chapter 2
+npm run dev -- approve modern-java --chapter 2 --by "Paul"
 npm run dev -- status modern-java
 npm run dev -- assemble modern-java
-npm run dev -- export modern-java
+npm run dev -- export modern-java --format pdf
+npm run dev -- export modern-java --format zip
 ```
 
-Mock mode never calls an external API. Each selected chapter runs sequentially:
+Mock mode is deterministic and never calls an external API. Use `--include-needs-review`
+on assembly or export for a draft that has not been approved. `--force` regenerates
+and preserves the prior chapter as a timestamped backup. Reruns resume at the first
+incomplete stage.
 
-```text
-Writer -> Reviewer -> Rewriter -> Published Chapter -> Summary
-```
-
-To generate one chapter, use `--chapter 1`. Use one-based ranges with `--from 3`,
-`--to 5`, or both. Published chapters are skipped on rerun, and incomplete
-chapters resume from their first incomplete stage. `--force` regenerates selected
-chapters and backs up an existing published chapter as
-`chapter.backup-<timestamp>.md`. `--continue-on-error` records a failed chapter
-and continues to later chapters, while the command still exits unsuccessfully.
-
-## OpenAI generation
-
-Configure the official OpenAI provider by exporting:
+## OpenAI workflow
 
 ```bash
 export OPENAI_API_KEY='your-api-key'
@@ -59,82 +56,76 @@ export BOOKFORGE_MODEL='your-model-id'
 export BOOKFORGE_TEMPERATURE=0.2
 export BOOKFORGE_MAX_RETRIES=3
 export BOOKFORGE_REQUEST_TIMEOUT_MS=120000
+npm run dev -- generate modern-java --chapter 2 --provider openai
 ```
 
-Then run the real equivalent:
+The provider records optional model, request ID, and token usage metadata. Retries
+are bounded to likely transient failures. Do not commit secrets, and manually verify
+technical claims and code before approval.
+
+## Quality and snippets
 
 ```bash
-npm run dev -- generate modern-java --provider openai
+npm run dev -- quality modern-java --chapter 2
+npm run dev -- quality modern-java --all --strict --json
+npm run dev -- reject modern-java --chapter 2 --reason "Needs a technical edit" --by "Paul"
+npm run dev -- review-status modern-java
 ```
 
-`OPENAI_API_KEY` and `BOOKFORGE_MODEL` are required for OpenAI mode. The default
-provider is `mock`; `BOOKFORGE_PROVIDER` may change that default, while an
-explicit `--provider` flag takes precedence. Retries are bounded and limited to
-likely transient failures. Completed artifacts remain available after failures
-and timeouts. Optional request IDs, model names, and token counts are recorded
-in generation state; BookForge does not calculate dollar cost.
+Chapters may define a `canonicalExample` in YAML. Code fences may declare
+`intent=illustrative`, `intent=standalone`, or `intent=compilable`, with
+`example=... file=...` metadata for multi-file examples. Missing intent is reported
+as an inferred illustrative snippet. Quality reports are written to each chapter as
+`quality-report.json` and `quality-report.md`; summaries are `summary.json` and
+`summary.md`.
 
-Do not log or commit secrets. Generated technical content still requires human
-verification and is not authoritative merely because it passed the pipeline.
+Optional validators use local tools only: Java uses `javac --release 21`, TypeScript
+uses strict `tsc`, and Python uses syntax-only `py_compile`. BookForge never executes
+generated application code and never downloads compilers.
 
-## Generated output
+## Assembly and exports
+
+Default assembly requires every included chapter to be human-approved:
+
+```bash
+npm run dev -- assemble modern-java
+npm run dev -- assemble modern-java --include-needs-review --allow-incomplete
+```
+
+Generated output includes:
 
 ```text
 generated/modern-java/
 ├── README.md
 ├── TABLE_OF_CONTENTS.md
+├── approval-status.md
 ├── combined.md
 ├── generation-state.json
-├── chapters/
-│   ├── 01-introduction/
-│   │   ├── draft.md
-│   │   ├── review.md
-│   │   ├── rewritten.md
-│   │   ├── chapter.md
-│   │   └── summary.md
-│   └── ...
+├── chapters/<number>-<id>/
+│   ├── draft.md
+│   ├── review.md
+│   ├── rewritten.md
+│   ├── chapter.md
+│   ├── summary.md
+│   ├── summary.json
+│   ├── quality-report.md
+│   └── quality-report.json
 └── exports/
+    ├── modern-java-and-object-oriented-design.pdf
     └── Modern-Java-and-Object-Oriented-Design.zip
 ```
 
-`status modern-java` reports every configured chapter, publication counts,
-failures, latest generation time, and known token usage. `assemble modern-java`
-requires every chapter to be published; `--allow-incomplete` assembles only
-published chapters and marks the result incomplete.
+The PDF is rendered from assembled Markdown using Playwright Chromium, with CSS
+page breaks, code/table styling, page numbers, and draft notices. If Chromium is not
+installed, export fails clearly and leaves no partial PDF. The ZIP contains only
+publication Markdown by default; internal workfiles and state are excluded.
 
-The ZIP contains only the publication package:
-
-```text
-README.md
-TABLE_OF_CONTENTS.md
-combined.md
-chapters/01-introduction.md
-chapters/02-oo.md
-...
-```
-
-Drafts, reviews, rewritten intermediates, state, logs, backups, temporary files,
-secrets, and source files are excluded.
-
-## Cleaning
-
-Cleaning always requires an explicit target:
+Cleaning requires an explicit target and protects manually modified chapter content:
 
 ```bash
 npm run dev -- clean modern-java --chapter 2 --dry-run
-npm run dev -- clean modern-java --chapter 2
+npm run dev -- clean modern-java --chapter 2 --force
 npm run dev -- clean modern-java --all --force
-```
-
-Without `--force`, manually modified published chapters are protected. `--dry-run`
-prints the exact paths that would be removed without deleting them. An ambiguous
-clean command cannot remove the entire generated book.
-
-## Validation and compiled CLI
-
-```bash
-npm run dev -- validate books/modern-java/book.yaml
-npm start -- status modern-java
 ```
 
 The engine remains generic: book-specific behavior belongs in YAML and editable

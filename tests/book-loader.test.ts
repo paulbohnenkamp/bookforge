@@ -5,7 +5,8 @@ describe('BookLoader', () => {
   it('loads the sample book specification', async () => {
     const book = await new BookLoader().load('books/modern-java/book.yaml');
     expect(book.book.id).toBe('modern-java');
-    expect(book.chapters).toHaveLength(3);
+    expect(book.chapters).toHaveLength(18);
+    expect(book.chapters[0]?.objectives).toHaveLength(4);
   });
 
   it('rejects an invalid specification', async () => {

@@ -24,6 +24,9 @@ export interface WriterPromptContext {
 
 export interface ReviewerPromptContext {
   chapter: Chapter;
+  audience: string[];
+  allChapters: Array<{ number: number; id: string; title: string }>;
+  previousChapters: Array<{ number: number; title: string; summary?: string }>;
   styleGuide: string;
   prompt: string;
   writerDraft: string;
@@ -31,6 +34,8 @@ export interface ReviewerPromptContext {
 
 export interface RewriterPromptContext {
   chapter: Chapter;
+  audience: string[];
+  previousChapters: Array<{ number: number; title: string; summary?: string }>;
   styleGuide: string;
   prompt: string;
   writerDraft: string;
@@ -65,14 +70,41 @@ export class PromptContextBuilder {
   }
 
   public buildReviewerContext(
+    book: Book,
     chapter: Chapter,
     resources: PromptResources,
     writerDraft: string,
+    previousChapters?: Array<{ number: number; title: string; summary?: string }>,
+  ): ReviewerPromptContext;
+  public buildReviewerContext(
+    chapter: Chapter,
+    resources: PromptResources,
+    writerDraft: string,
+  ): ReviewerPromptContext;
+  public buildReviewerContext(
+    first: Book | Chapter,
+    second: Chapter | PromptResources,
+    third: PromptResources | string,
+    fourth?: string | Array<{ number: number; title: string; summary?: string }>,
+    fifth: Array<{ number: number; title: string; summary?: string }> = [],
   ): ReviewerPromptContext {
+    const isBook = 'book' in first;
+    const book = isBook ? first : undefined;
+    const chapter = (isBook ? second : first) as Chapter;
+    const resources = (isBook ? third : second) as PromptResources;
+    const writerDraft = (isBook ? fourth : third) as string;
+    const previousChapters = isBook ? fifth : [];
     this.requireResources(resources, ['styleGuide', 'reviewerPrompt']);
     this.requireText(writerDraft, 'Writer draft');
     return {
       chapter,
+      audience: book?.book.audience ?? [],
+      allChapters: book?.chapters.map((item, index) => ({
+        number: index + 1,
+        id: item.id,
+        title: item.title,
+      })) ?? [{ number: 1, id: chapter.id, title: chapter.title }],
+      previousChapters,
       styleGuide: resources.styleGuide,
       prompt: resources.reviewerPrompt,
       writerDraft,
@@ -80,16 +112,20 @@ export class PromptContextBuilder {
   }
 
   public buildRewriterContext(
+    book: Book,
     chapter: Chapter,
     resources: PromptResources,
     writerDraft: string,
     reviewerResponse: string,
+    previousChapters: Array<{ number: number; title: string; summary?: string }> = [],
   ): RewriterPromptContext {
     this.requireResources(resources, ['styleGuide', 'rewriterPrompt']);
     this.requireText(writerDraft, 'Writer draft');
     this.requireText(reviewerResponse, 'Reviewer response');
     return {
       chapter,
+      audience: book.book.audience ?? [],
+      previousChapters,
       styleGuide: resources.styleGuide,
       prompt: resources.rewriterPrompt,
       writerDraft,
@@ -105,6 +141,7 @@ export class PromptContextBuilder {
       `Audience: ${context.audience.join(', ') || '(unspecified)'}`,
       `Style: tone=${context.tone}; interview questions=${context.includeInterviewQuestions}; exercises=${context.includeExercises}`,
       `Chapter specification: ${JSON.stringify(context.chapter)}`,
+      `Canonical example guidance: ${JSON.stringify(context.chapter.canonicalExample ?? null)}`,
       `All chapter titles: ${JSON.stringify(context.allChapters)}`,
       `Previously published chapter summaries: ${JSON.stringify(context.previousChapters)}`,
       `Style guide:\n${context.styleGuide}`,
@@ -116,6 +153,10 @@ export class PromptContextBuilder {
     return [
       'Stage: Reviewer',
       `Chapter specification: ${JSON.stringify(context.chapter)}`,
+      `Audience: ${context.audience.join(', ') || '(unspecified)'}`,
+      `All chapter titles: ${JSON.stringify(context.allChapters)}`,
+      `Previous chapter summaries: ${JSON.stringify(context.previousChapters)}`,
+      `Canonical example guidance: ${JSON.stringify(context.chapter.canonicalExample ?? null)}`,
       `Style guide:\n${context.styleGuide}`,
       `Reviewer prompt:\n${context.prompt}`,
       `Writer draft:\n${context.writerDraft}`,
@@ -126,6 +167,9 @@ export class PromptContextBuilder {
     return [
       'Stage: Rewriter',
       `Chapter specification: ${JSON.stringify(context.chapter)}`,
+      `Audience: ${context.audience.join(', ') || '(unspecified)'}`,
+      `Previous chapter summaries: ${JSON.stringify(context.previousChapters)}`,
+      `Canonical example guidance: ${JSON.stringify(context.chapter.canonicalExample ?? null)}`,
       `Style guide:\n${context.styleGuide}`,
       `Rewriter prompt:\n${context.prompt}`,
       `Writer draft:\n${context.writerDraft}`,

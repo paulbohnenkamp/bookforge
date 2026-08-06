@@ -1,5 +1,6 @@
 import path from 'node:path';
-import { access } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { BookResolver } from './book-resolver.js';
 import { GenerationStateStore } from './generation-state.js';
 import { chapterDirectoryPath } from './paths.js';
@@ -12,6 +13,10 @@ export interface ChapterStatus {
   provider?: string;
   latestGeneration?: string;
   error?: string;
+  qualityVerdict?: string;
+  approvedAt?: string;
+  approver?: string;
+  qualityFresh?: boolean;
 }
 
 export interface BookStatus {
@@ -19,6 +24,8 @@ export interface BookStatus {
   title: string;
   totalChapters: number;
   publishedChapters: number;
+  approvedChapters: number;
+  needsReviewChapters: number;
   incompleteChapters: number;
   failedChapters: number;
   chapters: ChapterStatus[];
@@ -44,24 +51,45 @@ export class BookStatusReporter {
       const chapter = resolved.book.chapters[number - 1];
       if (!chapter) continue;
       const state = bookState.chapters[String(number)];
+      const artifactDirectory = chapterDirectoryPath(
+        this.generatedDirectory,
+        bookId,
+        number,
+        chapter.id,
+      );
       const published =
-        state?.status === 'published' &&
-        (await this.exists(
-          path.join(
-            chapterDirectoryPath(this.generatedDirectory, bookId, number, chapter.id),
-            'chapter.md',
-          ),
-        ));
+        (state?.status === 'approved' || state?.status === 'needs_review') &&
+        (await this.exists(path.join(artifactDirectory, 'chapter.md')));
+      let qualityFresh = false;
+      if (
+        state?.qualityVerdict &&
+        (await this.exists(path.join(artifactDirectory, 'quality-report.json')))
+      ) {
+        try {
+          const report = JSON.parse(
+            await readFile(path.join(artifactDirectory, 'quality-report.json'), 'utf8'),
+          ) as { chapterHash?: string };
+          const chapterContent = await readFile(path.join(artifactDirectory, 'chapter.md'), 'utf8');
+          qualityFresh =
+            report.chapterHash === createHash('sha256').update(chapterContent).digest('hex');
+        } catch {
+          qualityFresh = false;
+        }
+      }
       chapters.push({
         number,
         id: chapter.id,
         title: chapter.title,
-        status: published ? 'published' : (state?.status ?? 'incomplete'),
+        status: published ? (state?.status ?? 'incomplete') : (state?.status ?? 'incomplete'),
         ...(state?.provider ? { provider: state.provider } : {}),
         ...(state?.completionTime || state?.startedAt
           ? { latestGeneration: state.completionTime ?? state.startedAt }
           : {}),
         ...(state?.errorSummary ? { error: state.errorSummary } : {}),
+        ...(state?.qualityVerdict ? { qualityVerdict: state.qualityVerdict } : {}),
+        ...(state?.approval?.approvedAt ? { approvedAt: state.approval.approvedAt } : {}),
+        ...(state?.approval?.approver ? { approver: state.approval.approver } : {}),
+        qualityFresh,
       });
     }
     const usages = Object.values(bookState.chapters).flatMap((state) =>
@@ -83,9 +111,16 @@ export class BookStatusReporter {
       bookId,
       title: resolved.book.book.title,
       totalChapters: chapters.length,
-      publishedChapters: chapters.filter((chapter) => chapter.status === 'published').length,
+      publishedChapters: chapters.filter(
+        (chapter) => chapter.status === 'approved' || chapter.status === 'needs_review',
+      ).length,
+      approvedChapters: chapters.filter((chapter) => chapter.status === 'approved').length,
+      needsReviewChapters: chapters.filter((chapter) => chapter.status === 'needs_review').length,
       incompleteChapters: chapters.filter(
-        (chapter) => chapter.status !== 'published' && chapter.status !== 'failed',
+        (chapter) =>
+          chapter.status !== 'approved' &&
+          chapter.status !== 'needs_review' &&
+          chapter.status !== 'failed',
       ).length,
       failedChapters: chapters.filter((chapter) => chapter.status === 'failed').length,
       chapters,
@@ -100,7 +135,7 @@ export class BookStatusReporter {
   public render(status: BookStatus): string {
     const lines = [
       `Book: ${status.title} (${status.bookId})`,
-      `Chapters: ${status.publishedChapters}/${status.totalChapters} published; ${status.incompleteChapters} incomplete; ${status.failedChapters} failed`,
+      `Chapters: ${status.approvedChapters} approved, ${status.needsReviewChapters} need human review, ${status.incompleteChapters} incomplete, ${status.failedChapters} failed`,
       `Generated directory: ${status.generatedDirectory}`,
       `Overall usage: ${status.totalUsage.totalTokens} tokens (${status.totalUsage.inputTokens} input, ${status.totalUsage.outputTokens} output)`,
       `Latest generation: ${status.latestGeneration ?? 'not recorded'}`,
@@ -108,7 +143,7 @@ export class BookStatusReporter {
       'Chapter status:',
       ...status.chapters.map(
         (chapter) =>
-          `  ${chapter.number}. ${chapter.title}: ${chapter.status}${chapter.error ? ` — ${chapter.error}` : ''}`,
+          `  ${chapter.number}. ${chapter.title}: ${chapter.status} (quality=${chapter.qualityVerdict ?? '—'}, report=${chapter.qualityFresh ? 'fresh' : '—'})${chapter.approver ? ` approved by ${chapter.approver}` : ''}${chapter.error ? ` — ${chapter.error}` : ''}`,
       ),
     ];
     return `${lines.join('\n')}\n`;

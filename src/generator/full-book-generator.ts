@@ -125,7 +125,7 @@ export class FullBookGenerator {
       const chapter = chapters[number - 1];
       if (!chapter) continue;
       const state = await stateStore.loadChapter(bookId, number);
-      if (state?.status !== 'published') continue;
+      if (state?.status !== 'needs_review' && state?.status !== 'approved') continue;
       const summaryPath = path.join(
         chapterDirectoryPath(this.generatedDirectory, bookId, number, chapter.id),
         'summary.md',
