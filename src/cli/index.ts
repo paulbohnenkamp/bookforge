@@ -4,6 +4,17 @@ import { loadConfig } from '../config/config.js';
 import { errorMessage, AppError } from '../errors/app-error.js';
 import { BookLoader } from '../loaders/book-loader.js';
 import { ConsoleLogger } from '../logging/logger.js';
+import { BookResolver } from '../generator/book-resolver.js';
+import { ChapterGenerator } from '../generator/chapter-generator.js';
+import { MockLlmProvider } from '../llm/mock-llm-provider.js';
+import { PromptLoader } from '../loaders/prompt-loader.js';
+
+interface GenerateCommandOptions {
+  chapter: string;
+  provider: string;
+  force: boolean;
+  verbose: boolean;
+}
 
 export function createCli(): Command {
   const program = new Command();
@@ -25,13 +36,38 @@ export function createCli(): Command {
 
   program
     .command('generate')
-    .description('Generate chapters (available in a later milestone)')
+    .description('Generate one chapter through the local Writer, Reviewer, and Rewriter workflow')
     .argument('<bookId>', 'book identifier')
-    .action(() => {
-      throw new AppError(
-        'Chapter generation is not part of Milestone 1.',
-        'Use validate to check a book specification.',
+    .requiredOption('--chapter <number>', 'one-based chapter number')
+    .option('--provider <provider>', 'LLM provider (only mock is available)', 'mock')
+    .option('--force', 'regenerate all stages and back up an existing published chapter')
+    .option('--verbose', 'enable debug logging')
+    .action(async (bookId: string, options: GenerateCommandOptions) => {
+      const chapterNumber = Number(options.chapter);
+      if (!Number.isInteger(chapterNumber) || chapterNumber < 1) {
+        throw new AppError(
+          'Chapter must be a positive integer.',
+          'Use a command such as --chapter 1.',
+        );
+      }
+      const config = loadConfig(process.env);
+      const logger = new ConsoleLogger(options.verbose ? 'debug' : config.logLevel);
+      const generator = new ChapterGenerator(
+        new BookResolver(config.booksDirectory),
+        new PromptLoader(config.promptsDirectory),
+        config.styleGuidePath,
+        config.generatedDirectory,
+        new MockLlmProvider(),
+        undefined,
+        undefined,
+        logger,
       );
+      await generator.generate({
+        bookId,
+        chapterNumber,
+        providerName: options.provider,
+        force: options.force,
+      });
     });
 
   return program;

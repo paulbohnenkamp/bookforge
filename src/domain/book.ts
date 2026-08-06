@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const chapterSchema = z.object({
+export const chapterSchema = z.object({
   id: z.string().trim().min(1),
   title: z.string().trim().min(1),
   targetWords: z.number().int().positive(),
@@ -32,6 +32,7 @@ export const bookSchema = z.object({
 });
 
 export type Book = z.infer<typeof bookSchema>;
+export type Chapter = z.infer<typeof chapterSchema>;
 
 export function parseBook(value: unknown): Book {
   return bookSchema.parse(value);

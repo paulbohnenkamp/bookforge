@@ -7,4 +7,12 @@ describe('MockLlmProvider', () => {
       'Mock response for prompt (5 characters).',
     );
   });
+
+  it('returns a complete rewritten chapter fixture', async () => {
+    const prompt =
+      'Stage: Rewriter\nChapter specification: {"id":"sample","title":"A Generic Topic"}\nReviewer response: feedback';
+    const output = await new MockLlmProvider().complete(prompt);
+    expect(output).toContain('# A Generic Topic');
+    expect(output).toContain('## Key Takeaways');
+  });
 });
