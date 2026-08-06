@@ -2,6 +2,7 @@ import path from 'node:path';
 import { access, readFile } from 'node:fs/promises';
 import { AtomicFileWriter } from './atomic-file-writer.js';
 import { AppError } from '../errors/app-error.js';
+import type { UsageMetadata } from '../llm/llm-provider.js';
 
 export type GenerationStatus =
   'pending' | 'writing' | 'reviewing' | 'rewriting' | 'publishing' | 'published' | 'failed';
@@ -25,6 +26,8 @@ export interface GenerationState {
   startedAt: string;
   completionTime?: string;
   provider: string;
+  usage?: Partial<Record<GenerationStage, UsageMetadata>>;
+  totalUsage?: UsageMetadata;
   failedStage?: GenerationStage;
   errorSummary?: string;
 }

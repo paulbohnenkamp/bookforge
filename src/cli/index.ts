@@ -6,12 +6,12 @@ import { BookLoader } from '../loaders/book-loader.js';
 import { ConsoleLogger } from '../logging/logger.js';
 import { BookResolver } from '../generator/book-resolver.js';
 import { ChapterGenerator } from '../generator/chapter-generator.js';
-import { MockLlmProvider } from '../llm/mock-llm-provider.js';
 import { PromptLoader } from '../loaders/prompt-loader.js';
+import { createProvider } from '../llm/provider-factory.js';
 
 interface GenerateCommandOptions {
   chapter: string;
-  provider: string;
+  provider?: string;
   force: boolean;
   verbose: boolean;
 }
@@ -36,10 +36,10 @@ export function createCli(): Command {
 
   program
     .command('generate')
-    .description('Generate one chapter through the local Writer, Reviewer, and Rewriter workflow')
+    .description('Generate one chapter through the Writer, Reviewer, and Rewriter workflow')
     .argument('<bookId>', 'book identifier')
     .requiredOption('--chapter <number>', 'one-based chapter number')
-    .option('--provider <provider>', 'LLM provider (only mock is available)', 'mock')
+    .option('--provider <provider>', 'LLM provider: mock or openai')
     .option('--force', 'regenerate all stages and back up an existing published chapter')
     .option('--verbose', 'enable debug logging')
     .action(async (bookId: string, options: GenerateCommandOptions) => {
@@ -52,22 +52,35 @@ export function createCli(): Command {
       }
       const config = loadConfig(process.env);
       const logger = new ConsoleLogger(options.verbose ? 'debug' : config.logLevel);
+      const providerName = options.provider ?? config.defaultProvider;
+      const provider = createProvider(providerName, config, logger);
+      const controller = new AbortController();
+      const onSigint = (): void => {
+        logger.warn('Interrupt received. Preserving completed artifacts and stopping generation.');
+        controller.abort();
+      };
+      process.once('SIGINT', onSigint);
       const generator = new ChapterGenerator(
         new BookResolver(config.booksDirectory),
         new PromptLoader(config.promptsDirectory),
         config.styleGuidePath,
         config.generatedDirectory,
-        new MockLlmProvider(),
+        provider,
         undefined,
         undefined,
         logger,
       );
-      await generator.generate({
-        bookId,
-        chapterNumber,
-        providerName: options.provider,
-        force: options.force,
-      });
+      try {
+        await generator.generate({
+          bookId,
+          chapterNumber,
+          providerName,
+          force: options.force,
+          signal: controller.signal,
+        });
+      } finally {
+        process.removeListener('SIGINT', onSigint);
+      }
     });
 
   return program;

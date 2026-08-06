@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { access, readFile } from 'node:fs/promises';
-import type { LlmProvider } from '../llm/llm-provider.js';
+import type { LlmCompletion, LlmProvider, LlmRequest, UsageMetadata } from '../llm/llm-provider.js';
 import { AppError, errorMessage } from '../errors/app-error.js';
 import { ConsoleLogger, type Logger } from '../logging/logger.js';
 import { PromptLoader } from '../loaders/prompt-loader.js';
@@ -18,6 +18,7 @@ export interface GenerationOptions {
   chapterNumber: number;
   providerName: string;
   force?: boolean;
+  signal?: AbortSignal;
 }
 
 export interface GenerationResult {
@@ -40,13 +41,6 @@ export class ChapterGenerator {
   ) {}
 
   public async generate(options: GenerationOptions): Promise<GenerationResult> {
-    if (options.providerName !== 'mock') {
-      throw new AppError(
-        `Unsupported provider: ${options.providerName}`,
-        'Milestone 2 supports only --provider mock.',
-      );
-    }
-
     const resolved = await this.resolver.resolve(options.bookId, options.chapterNumber);
     const chapterDirectory = path.join(
       this.generatedDirectory,
@@ -88,11 +82,11 @@ export class ChapterGenerator {
 
     try {
       if (firstIncomplete <= 0)
-        await this.runWriter(state, stateStore, resolved, resources, artifacts);
+        await this.runWriter(state, stateStore, resolved, resources, artifacts, options.signal);
       if (firstIncomplete <= 1)
-        await this.runReviewer(state, stateStore, resolved, resources, artifacts);
+        await this.runReviewer(state, stateStore, resolved, resources, artifacts, options.signal);
       if (firstIncomplete <= 2)
-        await this.runRewriter(state, stateStore, resolved, resources, artifacts);
+        await this.runRewriter(state, stateStore, resolved, resources, artifacts, options.signal);
       if (firstIncomplete <= 3) await this.runPublisher(state, stateStore, artifacts);
       state.status = 'published';
       state.completionTime = new Date().toISOString();
@@ -129,16 +123,24 @@ export class ChapterGenerator {
     resolved: ResolvedChapter,
     resources: PromptResources,
     artifacts: GenerationState['artifactPaths'],
+    signal: AbortSignal | undefined,
   ): Promise<void> {
     state.status = 'writing';
     await stateStore.save(state);
+    this.throwIfAborted(signal);
     const context = this.contextBuilder.buildWriterContext(
       resolved.book,
       resolved.chapter,
       resources,
     );
-    const output = await this.provider.complete(this.contextBuilder.renderWriter(context));
-    await this.writeStage(state, stateStore, 'writer', artifacts.draft, output);
+    const completion = await this.complete({
+      prompt: this.contextBuilder.renderWriter(context),
+      systemInstruction:
+        'Write one complete technical-book chapter in Markdown. Follow the supplied style guide.',
+      ...(signal ? { signal } : {}),
+    });
+    this.recordUsage(state, 'writer', completion.usage);
+    await this.writeStage(state, stateStore, 'writer', artifacts.draft, completion.text);
   }
 
   private async runReviewer(
@@ -147,13 +149,21 @@ export class ChapterGenerator {
     resolved: ResolvedChapter,
     resources: PromptResources,
     artifacts: GenerationState['artifactPaths'],
+    signal: AbortSignal | undefined,
   ): Promise<void> {
     state.status = 'reviewing';
     await stateStore.save(state);
+    this.throwIfAborted(signal);
     const draft = await readFile(artifacts.draft, 'utf8');
     const context = this.contextBuilder.buildReviewerContext(resolved.chapter, resources, draft);
-    const output = await this.provider.complete(this.contextBuilder.renderReviewer(context));
-    await this.writeStage(state, stateStore, 'reviewer', artifacts.review, output);
+    const completion = await this.complete({
+      prompt: this.contextBuilder.renderReviewer(context),
+      systemInstruction:
+        'Review the supplied chapter draft. Return only specific strengths, weaknesses, missing topics, incorrect statements, and suggested improvements.',
+      ...(signal ? { signal } : {}),
+    });
+    this.recordUsage(state, 'reviewer', completion.usage);
+    await this.writeStage(state, stateStore, 'reviewer', artifacts.review, completion.text);
   }
 
   private async runRewriter(
@@ -162,9 +172,11 @@ export class ChapterGenerator {
     resolved: ResolvedChapter,
     resources: PromptResources,
     artifacts: GenerationState['artifactPaths'],
+    signal: AbortSignal | undefined,
   ): Promise<void> {
     state.status = 'rewriting';
     await stateStore.save(state);
+    this.throwIfAborted(signal);
     const [draft, review] = await Promise.all([
       readFile(artifacts.draft, 'utf8'),
       readFile(artifacts.review, 'utf8'),
@@ -175,8 +187,14 @@ export class ChapterGenerator {
       draft,
       review,
     );
-    const output = await this.provider.complete(this.contextBuilder.renderRewriter(context));
-    await this.writeStage(state, stateStore, 'rewriter', artifacts.rewritten, output);
+    const completion = await this.complete({
+      prompt: this.contextBuilder.renderRewriter(context),
+      systemInstruction:
+        'Rewrite the chapter using the review feedback. Return the complete final chapter as Markdown.',
+      ...(signal ? { signal } : {}),
+    });
+    this.recordUsage(state, 'rewriter', completion.usage);
+    await this.writeStage(state, stateStore, 'rewriter', artifacts.rewritten, completion.text);
   }
 
   private async runPublisher(
@@ -202,6 +220,42 @@ export class ChapterGenerator {
     await this.fileWriter.write(filePath, output);
     state.completedStages = this.withCompletedStage(state.completedStages, stage);
     await stateStore.save(state);
+  }
+
+  private async complete(request: LlmRequest): Promise<LlmCompletion> {
+    if (this.provider.completeWithMetadata) return this.provider.completeWithMetadata(request);
+    return { text: await this.provider.complete(request.prompt) };
+  }
+
+  private recordUsage(
+    state: GenerationState,
+    stage: GenerationStage,
+    usage: UsageMetadata | undefined,
+  ): void {
+    if (!usage) return;
+    state.usage = { ...state.usage, [stage]: usage };
+    const totals = Object.values(state.usage).reduce(
+      (total, current) => ({
+        inputTokens: (total.inputTokens ?? 0) + (current?.inputTokens ?? 0),
+        outputTokens: (total.outputTokens ?? 0) + (current?.outputTokens ?? 0),
+        totalTokens: (total.totalTokens ?? 0) + (current?.totalTokens ?? 0),
+      }),
+      {},
+    );
+    state.totalUsage = {
+      ...(totals.inputTokens ? { inputTokens: totals.inputTokens } : {}),
+      ...(totals.outputTokens ? { outputTokens: totals.outputTokens } : {}),
+      ...(totals.totalTokens ? { totalTokens: totals.totalTokens } : {}),
+    };
+  }
+
+  private throwIfAborted(signal: AbortSignal | undefined): void {
+    if (signal?.aborted) {
+      throw new AppError(
+        'Chapter generation was interrupted.',
+        'Rerun the command to resume completed stages.',
+      );
+    }
   }
 
   private prepareState(
@@ -286,6 +340,7 @@ export class ChapterGenerator {
   }
 
   private stageForStatus(status: GenerationState['status']): GenerationStage {
+    if (status === 'pending') return 'writer';
     if (status === 'writing') return 'writer';
     if (status === 'reviewing') return 'reviewer';
     if (status === 'rewriting') return 'rewriter';
