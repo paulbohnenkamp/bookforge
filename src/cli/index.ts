@@ -40,11 +40,15 @@ interface StatusCommandOptions {
 interface AssembleCommandOptions {
   allowIncomplete: boolean;
   includeNeedsReview: boolean;
+  from?: string;
+  to?: string;
 }
 
 interface ExportCommandOptions {
   format: 'zip' | 'pdf' | 'all';
   includeNeedsReview: boolean;
+  from?: string;
+  to?: string;
 }
 interface ReviewCommandOptions {
   chapter: string;
@@ -338,8 +342,12 @@ export function createCli(): Command {
     .argument('<bookId>', 'book identifier')
     .option('--allow-incomplete', 'assemble with missing chapters and mark output incomplete')
     .option('--include-needs-review', 'include generated chapters that lack human approval')
+    .option('--from <number>', 'first one-based chapter number to include')
+    .option('--to <number>', 'last one-based chapter number to include')
     .action(async (bookId: string, options: AssembleCommandOptions) => {
       const config = loadConfig(process.env);
+      const from = parsePositiveNumber(options.from, '--from');
+      const to = parsePositiveNumber(options.to, '--to');
       const result = await new BookAssembler(
         new BookResolver(config.booksDirectory),
         config.generatedDirectory,
@@ -347,6 +355,8 @@ export function createCli(): Command {
         bookId,
         allowIncomplete: options.allowIncomplete,
         includeNeedsReview: options.includeNeedsReview,
+        ...(from === undefined ? {} : { from }),
+        ...(to === undefined ? {} : { to }),
       });
       console.log(
         `Assembled ${result.publishedChapters.length} chapter(s): ${result.combinedPath}`,
@@ -359,10 +369,14 @@ export function createCli(): Command {
     .argument('<bookId>', 'book identifier')
     .option('--format <format>', 'pdf, zip, or all', 'zip')
     .option('--include-needs-review', 'export a draft that has not been human-approved')
+    .option('--from <number>', 'first one-based chapter number to include')
+    .option('--to <number>', 'last one-based chapter number to include')
     .action(async (bookId: string, options: ExportCommandOptions) => {
       const config = loadConfig(process.env);
       const resolved = await new BookResolver(config.booksDirectory).resolve(bookId, 1);
       const includeNeedsReview = options.includeNeedsReview === true;
+      const from = parsePositiveNumber(options.from, '--from');
+      const to = parsePositiveNumber(options.to, '--to');
       await new BookAssembler(
         new BookResolver(config.booksDirectory),
         config.generatedDirectory,
@@ -370,6 +384,8 @@ export function createCli(): Command {
         bookId,
         includeNeedsReview,
         ...(includeNeedsReview ? { allowIncomplete: true } : {}),
+        ...(from === undefined ? {} : { from }),
+        ...(to === undefined ? {} : { to }),
       });
       if (options.format !== 'pdf' && options.format !== 'zip' && options.format !== 'all')
         throw new AppError('--format must be pdf, zip, or all.');
@@ -377,7 +393,13 @@ export function createCli(): Command {
         const result = await new ZipExporter(
           new BookResolver(config.booksDirectory),
           config.generatedDirectory,
-        ).export({ bookId, title: resolved.book.book.title, includeNeedsReview });
+        ).export({
+          bookId,
+          title: resolved.book.book.title,
+          includeNeedsReview,
+          ...(from === undefined ? {} : { from }),
+          ...(to === undefined ? {} : { to }),
+        });
         console.log(`Exported ${result.entries.length} entries: ${result.archivePath}`);
       }
       if (options.format === 'pdf' || options.format === 'all') {

@@ -92,6 +92,19 @@ npm run dev -- assemble modern-java
 npm run dev -- assemble modern-java --include-needs-review --allow-incomplete
 ```
 
+For a partial draft, scope assembly and export explicitly. The selected range is
+one-based and remains marked incomplete:
+
+```bash
+npm run dev -- assemble modern-java --from 1 --to 3 --include-needs-review --allow-incomplete
+npm run dev -- export modern-java --format pdf --from 1 --to 3 --include-needs-review
+npm run dev -- export modern-java --format zip --from 1 --to 3 --include-needs-review
+```
+
+Scoped table-of-contents links target stable anchors in `combined.md`. Older
+generated chapters outside the selected range are not included in the partial
+publication package.
+
 Generated output includes:
 
 ```text

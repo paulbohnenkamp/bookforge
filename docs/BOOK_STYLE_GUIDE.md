@@ -90,6 +90,25 @@ Every normal chapter should contain these sections unless the chapter type clear
 
 The exact wording of headings may vary slightly, but the functions should remain.
 
+## Pacing and Variation
+
+The required sections define a learning rhythm, not a repeated template. A
+chapter may open with a concrete failure, a design decision, a reader question,
+or a carefully qualified misconception. Avoid making every chapter begin by
+rejecting a simplistic definition.
+
+Vary paragraph length and explanation shape. One concept may need a short
+definition and table; another may need a worked narrative or a failure analysis.
+Do not force every subsection into the same definition, code example, tradeoff,
+and warning sequence. Use a new example only when it adds a new decision,
+failure mode, or tradeoff.
+
+The ending should synthesize 4–8 chapter-specific decisions or a concise review
+checklist. It should not repeat the Best Practices section or use a stock
+conclusion. Transitions should explain why the next idea follows from the
+current one; avoid announcements such as “now that we have covered” and repeated
+phrases such as “the important distinction is.”
+
 ## Why This Matters
 
 Explain:
@@ -313,6 +332,18 @@ and declare filenames, for example:
 Illustrative snippets explain omitted setup. Standalone snippets show the imports or
 project assumptions needed to adapt them. Compilable snippets must contain enough
 metadata and source for BookForge's optional validator to attempt compilation.
+
+Use intent honestly. An illustrative snippet must identify omitted imports,
+supporting types, state, or project setup nearby. A standalone snippet should be
+coherent enough to adapt without guessing at undeclared contracts; if it is not,
+mark it illustrative. A compilable snippet must identify its minimum language
+version when relevant and keep filenames, declarations, signatures, and imports
+consistent across its example group.
+
+For Java books, introduce the minimum release and compatibility implication
+before the first version-sensitive API or language feature. A general version
+disclaimer at the beginning or end of a chapter does not replace local context
+beside the example.
 
 ### Canonical examples
 
@@ -763,7 +794,10 @@ A chapter may be longer when:
 
 Do not add filler to hit a number.
 
-A reasonable default range is 80%–120% of the target word count.
+A reasonable default range is 80%–120% of the target word count. Treat the target
+as a soft editorial budget, not a quota: aim near 80%–110% when the topic allows,
+and stop when the objectives are covered. Use 120% as a warning boundary. Never
+add filler, repeated explanations, or near-equivalent examples to reach a number.
 
 ---
 

@@ -12,6 +12,8 @@ export interface ZipExportOptions {
   bookId: string;
   title: string;
   includeNeedsReview?: boolean;
+  from?: number;
+  to?: number;
 }
 
 export interface ZipExportResult {
@@ -30,6 +32,7 @@ export class ZipExporter {
     const bookDirectory = path.join(this.generatedDirectory, options.bookId);
     const stateStore = new GenerationStateStore(path.join(bookDirectory, 'generation-state.json'));
     const states = await stateStore.loadBook(options.bookId);
+    const range = this.resolveRange(options.from, options.to, resolved.book.chapters.length);
     const sourceFiles = [
       { path: path.join(bookDirectory, 'README.md'), entry: 'README.md' },
       { path: path.join(bookDirectory, 'TABLE_OF_CONTENTS.md'), entry: 'TABLE_OF_CONTENTS.md' },
@@ -38,7 +41,7 @@ export class ZipExporter {
     const entries = sourceFiles.map((file) => file.entry);
     for (const file of sourceFiles) await this.requireFile(file.path, file.entry);
 
-    for (let number = 1; number <= resolved.book.chapters.length; number += 1) {
+    for (let number = range.from; number <= range.to; number += 1) {
       const chapter = resolved.book.chapters[number - 1];
       if (!chapter) continue;
       const state = states.chapters[String(number)];
@@ -108,5 +111,26 @@ export class ZipExporter {
         cause: error,
       });
     }
+  }
+
+  private resolveRange(
+    from: number | undefined,
+    to: number | undefined,
+    total: number,
+  ): { from: number; to: number } {
+    const start = from ?? 1;
+    const end = to ?? total;
+    if (
+      !Number.isInteger(start) ||
+      !Number.isInteger(end) ||
+      start < 1 ||
+      end < 1 ||
+      start > total ||
+      end > total
+    )
+      throw new AppError(`Chapter range ${start}-${end} is outside the book's 1-${total} range.`);
+    if (start > end)
+      throw new AppError(`Chapter range start ${start} cannot be greater than end ${end}.`);
+    return { from: start, to: end };
   }
 }

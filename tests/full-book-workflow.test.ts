@@ -187,8 +187,9 @@ describe('full-book workflow', () => {
     const toc = await readFile(assembled.tableOfContentsPath, 'utf8');
     expect(combined).toContain('# Sample Book');
     expect(combined.indexOf('First Topic')).toBeLessThan(combined.indexOf('Second Topic'));
-    expect(toc).toContain('1. [First Topic](chapters/01-chapter-1.md)');
-    expect(toc).toContain('3. [Third Topic](chapters/03-chapter-3.md)');
+    expect(toc).toContain('1. [First Topic](#chapter-01-chapter-1)');
+    expect(toc).toContain('3. [Third Topic](#chapter-03-chapter-3)');
+    expect(combined).toContain('<a id="chapter-01-chapter-1"></a>');
 
     const status = await new BookStatusReporter(
       workspace.resolver,
@@ -217,6 +218,49 @@ describe('full-book workflow', () => {
       'chapters/03-chapter-3.md',
       'combined.md',
     ]);
+  });
+
+  it('assembles and exports an explicitly scoped partial draft', async () => {
+    const workspace = await createWorkspace();
+    await createFullGenerator(workspace, new MockLlmProvider()).generate({
+      bookId: 'sample',
+      providerName: 'mock',
+      from: 1,
+      to: 3,
+    });
+    const assembled = await new BookAssembler(
+      workspace.resolver,
+      workspace.generatedDirectory,
+    ).assemble({
+      bookId: 'sample',
+      from: 1,
+      to: 2,
+      allowIncomplete: true,
+      includeNeedsReview: true,
+    });
+    const readme = await readFile(assembled.readmePath, 'utf8');
+    const combined = await readFile(assembled.combinedPath, 'utf8');
+    expect(readme).toContain('Included chapter range: 1–2 of 3.');
+    expect(combined).toContain('Incomplete draft');
+    expect(combined).toContain('First Topic');
+    expect(combined).toContain('Second Topic');
+    expect(combined).not.toContain('Third Topic');
+
+    const exported = await new ZipExporter(workspace.resolver, workspace.generatedDirectory).export(
+      {
+        bookId: 'sample',
+        title: 'Sample Book',
+        includeNeedsReview: true,
+        from: 1,
+        to: 2,
+      },
+    );
+    const zipListing = (await execFileAsync('unzip', ['-Z1', exported.archivePath])).stdout
+      .trim()
+      .split('\n');
+    expect(zipListing).toContain('chapters/01-chapter-1.md');
+    expect(zipListing).toContain('chapters/02-chapter-2.md');
+    expect(zipListing).not.toContain('chapters/03-chapter-3.md');
   });
 
   it('rejects incomplete assembly and protects manually edited chapters during cleaning', async () => {
