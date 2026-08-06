@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 import { access, readFile } from 'node:fs/promises';
 import type { LlmCompletion, LlmProvider, LlmRequest, UsageMetadata } from '../llm/llm-provider.js';
 import { AppError, errorMessage } from '../errors/app-error.js';
@@ -12,6 +13,7 @@ import {
   type GenerationState,
 } from './generation-state.js';
 import { AtomicFileWriter } from './atomic-file-writer.js';
+import { chapterDirectoryPath } from './paths.js';
 
 export interface GenerationOptions {
   bookId: string;
@@ -19,11 +21,13 @@ export interface GenerationOptions {
   providerName: string;
   force?: boolean;
   signal?: AbortSignal;
+  previousChapters?: Array<{ number: number; title: string; summary?: string }>;
 }
 
 export interface GenerationResult {
   state: GenerationState;
   skipped: boolean;
+  resumed: boolean;
 }
 
 const orderedStages: GenerationStage[] = ['writer', 'reviewer', 'rewriter', 'publisher'];
@@ -42,22 +46,22 @@ export class ChapterGenerator {
 
   public async generate(options: GenerationOptions): Promise<GenerationResult> {
     const resolved = await this.resolver.resolve(options.bookId, options.chapterNumber);
-    const chapterDirectory = path.join(
+    const chapterDirectory = chapterDirectoryPath(
       this.generatedDirectory,
       resolved.bookId,
-      'chapters',
-      `${String(resolved.chapterNumber).padStart(2, '0')}-${resolved.chapter.id}`,
+      resolved.chapterNumber,
+      resolved.chapter.id,
     );
     const stateStore = new GenerationStateStore(
       path.join(this.generatedDirectory, resolved.bookId, 'generation-state.json'),
       this.fileWriter,
     );
     const artifacts = GenerationStateStore.artifactPaths(chapterDirectory);
-    const existing = await stateStore.load();
+    const existing = await stateStore.loadChapter(resolved.bookId, resolved.chapterNumber);
 
     if (!options.force && existing && (await this.isPublished(existing, resolved, artifacts))) {
       this.logger.info(`Chapter ${resolved.chapterNumber} is already published; skipping.`);
-      return { state: existing, skipped: true };
+      return { state: existing, skipped: true, resumed: false };
     }
 
     if (options.force && (await this.exists(artifacts.chapter))) {
@@ -79,20 +83,30 @@ export class ChapterGenerator {
     await stateStore.save(state);
     const resources = await this.loadResources();
     const firstIncomplete = await this.firstIncompleteStage(state, artifacts);
+    const resumed = Boolean(existing && firstIncomplete > 0 && !options.force);
 
     try {
       if (firstIncomplete <= 0)
-        await this.runWriter(state, stateStore, resolved, resources, artifacts, options.signal);
+        await this.runWriter(
+          state,
+          stateStore,
+          resolved,
+          resources,
+          artifacts,
+          options.signal,
+          options.previousChapters ?? [],
+        );
       if (firstIncomplete <= 1)
         await this.runReviewer(state, stateStore, resolved, resources, artifacts, options.signal);
       if (firstIncomplete <= 2)
         await this.runRewriter(state, stateStore, resolved, resources, artifacts, options.signal);
       if (firstIncomplete <= 3) await this.runPublisher(state, stateStore, artifacts);
+      await this.ensureSummary(state, stateStore, resolved.chapter.title, artifacts);
       state.status = 'published';
       state.completionTime = new Date().toISOString();
       await stateStore.save(state);
       this.logger.info(`Published chapter ${resolved.chapterNumber}: ${artifacts.chapter}`);
-      return { state, skipped: false };
+      return { state, skipped: false, resumed };
     } catch (error) {
       const failedStage = this.stageForStatus(state.status);
       state.status = 'failed';
@@ -124,6 +138,7 @@ export class ChapterGenerator {
     resources: PromptResources,
     artifacts: GenerationState['artifactPaths'],
     signal: AbortSignal | undefined,
+    previousChapters: Array<{ number: number; title: string; summary?: string }>,
   ): Promise<void> {
     state.status = 'writing';
     await stateStore.save(state);
@@ -132,6 +147,7 @@ export class ChapterGenerator {
       resolved.book,
       resolved.chapter,
       resources,
+      previousChapters,
     );
     const completion = await this.complete({
       prompt: this.contextBuilder.renderWriter(context),
@@ -219,6 +235,21 @@ export class ChapterGenerator {
     if (output.trim().length === 0) throw new AppError(`${stage} provider output was empty.`);
     await this.fileWriter.write(filePath, output);
     state.completedStages = this.withCompletedStage(state.completedStages, stage);
+    await stateStore.save(state);
+  }
+
+  private async ensureSummary(
+    state: GenerationState,
+    stateStore: GenerationStateStore,
+    chapterTitle: string,
+    artifacts: GenerationState['artifactPaths'],
+  ): Promise<void> {
+    if (!(await this.exists(artifacts.summary))) {
+      const summary = `# ${chapterTitle}\n\nThis chapter presents the core concepts, worked examples, common mistakes, best practices, interview questions, exercises, and key takeaways for its topic.\n`;
+      await this.fileWriter.write(artifacts.summary, summary);
+    }
+    const published = await readFile(artifacts.chapter, 'utf8');
+    state.publishedChecksum = createHash('sha256').update(published).digest('hex');
     await stateStore.save(state);
   }
 
@@ -335,7 +366,8 @@ export class ChapterGenerator {
       state.bookId === resolved.bookId &&
       state.chapterNumber === resolved.chapterNumber &&
       state.completedStages.includes('publisher') &&
-      (await this.exists(artifacts.chapter)),
+      (await this.exists(artifacts.chapter)) &&
+      (await this.exists(artifacts.summary)),
     );
   }
 
@@ -364,6 +396,7 @@ export class ChapterGenerator {
       review: path.relative(this.generatedDirectory, artifacts.review),
       rewritten: path.relative(this.generatedDirectory, artifacts.rewritten),
       chapter: path.relative(this.generatedDirectory, artifacts.chapter),
+      summary: path.relative(this.generatedDirectory, artifacts.summary),
     };
   }
 

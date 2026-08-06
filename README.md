@@ -1,27 +1,24 @@
 # BookForge
 
 BookForge is a local-first TypeScript CLI for working with generic technical-book
-specifications. Milestone 3 provides a complete single-chapter workflow using
-either the deterministic local mock provider or the official OpenAI JavaScript
-SDK.
+specifications. It supports sequential chapter generation, full-book assembly,
+status reporting, and publication ZIP export.
 
-## Requirements
+## Requirements and setup
 
 - Node.js 22 or newer
 - npm
-
-## Setup
 
 ```bash
 npm install
 npm run build
 ```
 
-Copy `.env.example` to `.env` as a starting point. BookForge does not load `.env`
-automatically; export the variables in the shell before running the CLI. For Bash
-or Zsh:
+BookForge does not load `.env` automatically. Copy `.env.example` if useful, then
+export its values in the shell. For Bash or Zsh:
 
 ```bash
+cp .env.example .env
 set -a
 source .env
 set +a
@@ -29,20 +26,32 @@ set +a
 
 Never commit a file containing `OPENAI_API_KEY`.
 
-## Mock generation pipeline
+## Complete mock workflow
 
-The generator resolves a book ID, loads the book and editable prompts, then runs
-three sequential stages:
-
-```text
-Writer -> Reviewer -> Rewriter -> Published Chapter
+```bash
+npm run dev -- validate books/modern-java/book.yaml
+npm run dev -- generate modern-java --provider mock
+npm run dev -- status modern-java
+npm run dev -- assemble modern-java
+npm run dev -- export modern-java
 ```
 
-Mock mode never calls an external API. Its deterministic fixtures include stage
-markers and prior-stage context so the local workflow is easy to inspect.
+Mock mode never calls an external API. Each selected chapter runs sequentially:
 
-OpenAI mode sends only the stage system instruction and the stage-specific prompt
-context to the Responses API. Configure it with:
+```text
+Writer -> Reviewer -> Rewriter -> Published Chapter -> Summary
+```
+
+To generate one chapter, use `--chapter 1`. Use one-based ranges with `--from 3`,
+`--to 5`, or both. Published chapters are skipped on rerun, and incomplete
+chapters resume from their first incomplete stage. `--force` regenerates selected
+chapters and backs up an existing published chapter as
+`chapter.backup-<timestamp>.md`. `--continue-on-error` records a failed chapter
+and continues to later chapters, while the command still exits unsuccessfully.
+
+## OpenAI generation
+
+Configure the official OpenAI provider by exporting:
 
 ```bash
 export OPENAI_API_KEY='your-api-key'
@@ -52,60 +61,81 @@ export BOOKFORGE_MAX_RETRIES=3
 export BOOKFORGE_REQUEST_TIMEOUT_MS=120000
 ```
 
+Then run the real equivalent:
+
+```bash
+npm run dev -- generate modern-java --provider openai
+```
+
 `OPENAI_API_KEY` and `BOOKFORGE_MODEL` are required for OpenAI mode. The default
-provider is `mock`; `BOOKFORGE_PROVIDER` may change that default, while an explicit
-`--provider` flag takes precedence.
+provider is `mock`; `BOOKFORGE_PROVIDER` may change that default, while an
+explicit `--provider` flag takes precedence. Retries are bounded and limited to
+likely transient failures. Completed artifacts remain available after failures
+and timeouts. Optional request IDs, model names, and token counts are recorded
+in generation state; BookForge does not calculate dollar cost.
 
-Generate chapter 1:
+Do not log or commit secrets. Generated technical content still requires human
+verification and is not authoritative merely because it passed the pipeline.
 
-```bash
-npm run dev -- generate modern-java --chapter 1 --provider mock
-```
-
-Generate chapter 1 with OpenAI:
-
-```bash
-npm run dev -- generate modern-java --chapter 1 --provider openai
-```
-
-Validate a book specification:
-
-```bash
-npm run dev -- validate books/modern-java/book.yaml
-```
-
-Generated files are written under:
+## Generated output
 
 ```text
 generated/modern-java/
-├── chapters/01-introduction/
-│   ├── draft.md
-│   ├── review.md
-│   ├── rewritten.md
-│   └── chapter.md
-└── generation-state.json
+├── README.md
+├── TABLE_OF_CONTENTS.md
+├── combined.md
+├── generation-state.json
+├── chapters/
+│   ├── 01-introduction/
+│   │   ├── draft.md
+│   │   ├── review.md
+│   │   ├── rewritten.md
+│   │   ├── chapter.md
+│   │   └── summary.md
+│   └── ...
+└── exports/
+    └── Modern-Java-and-Object-Oriented-Design.zip
 ```
 
-The state file records the current status, completed stages, provider, timestamps,
-artifact paths, and optional per-stage and total token usage. OpenAI request IDs,
-model names, and token counts are recorded when returned by the SDK; dollar cost is
-not calculated. Rerunning either provider reuses completed stage artifacts and
-continues from the first incomplete stage. A published chapter is skipped. Use
-`--force` to regenerate every stage; an existing published chapter is first saved
-as `chapter.backup-<timestamp>.md`. Failed OpenAI stages remain recorded as failed
-and do not publish a chapter.
+`status modern-java` reports every configured chapter, publication counts,
+failures, latest generation time, and known token usage. `assemble modern-java`
+requires every chapter to be published; `--allow-incomplete` assembles only
+published chapters and marks the result incomplete.
 
-Use `--verbose` for safe provider diagnostics, including retry attempts, HTTP
-status, and request IDs. Retryable OpenAI rate-limit, timeout, connection, and
-temporary server failures use bounded exponential backoff with jitter. Invalid
-credentials and invalid request configuration are not retried.
+The ZIP contains only the publication package:
 
-Generated technical content still requires human verification. Full-book
-generation, additional providers, review editing, combined Markdown, and export
-formats are intentionally deferred.
+```text
+README.md
+TABLE_OF_CONTENTS.md
+combined.md
+chapters/01-introduction.md
+chapters/02-oo.md
+...
+```
 
-Run the compiled CLI:
+Drafts, reviews, rewritten intermediates, state, logs, backups, temporary files,
+secrets, and source files are excluded.
+
+## Cleaning
+
+Cleaning always requires an explicit target:
 
 ```bash
-npm start -- validate books/modern-java/book.yaml
+npm run dev -- clean modern-java --chapter 2 --dry-run
+npm run dev -- clean modern-java --chapter 2
+npm run dev -- clean modern-java --all --force
 ```
+
+Without `--force`, manually modified published chapters are protected. `--dry-run`
+prints the exact paths that would be removed without deleting them. An ambiguous
+clean command cannot remove the entire generated book.
+
+## Validation and compiled CLI
+
+```bash
+npm run dev -- validate books/modern-java/book.yaml
+npm start -- status modern-java
+```
+
+The engine remains generic: book-specific behavior belongs in YAML and editable
+prompt files, not in TypeScript.
