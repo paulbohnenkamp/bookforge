@@ -78,14 +78,14 @@ illustrative type is part of the book-wide canonical domain.
 
 ## Revised Chapter List
 
-| No. | Chapter | Revised target | Unique purpose |
-| ---: | --- | ---: | --- |
-| 13 | Performance Measurement Without Guesswork | 5,000 | Turn a performance concern into a repeatable experiment and evidence-backed decision |
-| 14 | Maintainable Java API Design | 5,000 | Design and evolve public Java contracts without accidental compatibility damage |
-| 15 | Testing Modern Java Systems | 5,000 | Build a risk-aligned, deterministic test portfolio that protects behavior and feedback speed |
-| 16 | Modernizing a Java 8 Codebase | 5,000 | Sequence a real Java 8 modernization with compatibility probes, rollout, and rollback |
-| 17 | Senior Java Interview Preparation | 4,000 | Synthesize the book's ideas into clear senior-level answers under constraints |
-| 18 | Exercises and Solutions: Design a Modern Java Service | 5,000 | Apply the book as one coherent service design, implementation, test, and review exercise |
+| No. | Chapter                                               | Revised target | Unique purpose                                                                               |
+| --: | ----------------------------------------------------- | -------------: | -------------------------------------------------------------------------------------------- |
+|  13 | Performance Measurement Without Guesswork             |          5,000 | Turn a performance concern into a repeatable experiment and evidence-backed decision         |
+|  14 | Maintainable Java API Design                          |          5,000 | Design and evolve public Java contracts without accidental compatibility damage              |
+|  15 | Testing Modern Java Systems                           |          5,000 | Build a risk-aligned, deterministic test portfolio that protects behavior and feedback speed |
+|  16 | Modernizing a Java 8 Codebase                         |          5,000 | Sequence a real Java 8 modernization with compatibility probes, rollout, and rollback        |
+|  17 | Senior Java Interview Preparation                     |          4,000 | Synthesize the book's ideas into clear senior-level answers under constraints                |
+|  18 | Exercises and Solutions: Design a Modern Java Service |          5,000 | Apply the book as one coherent service design, implementation, test, and review exercise     |
 
 ## Revised Chapter Objectives
 
@@ -319,16 +319,16 @@ not approve automatically.
 
 ## Expected Total Word Count
 
-| Portion | Target |
-| --- | ---: |
+| Portion                     | Target |
+| --------------------------- | -----: |
 | Chapters 1–12 existing plan | 62,000 |
-| Chapter 13 revised | 5,000 |
-| Chapter 14 revised | 5,000 |
-| Chapter 15 revised | 5,000 |
-| Chapter 16 revised | 5,000 |
-| Chapter 17 revised | 4,000 |
-| Chapter 18 revised | 5,000 |
-| Projected volume target | 91,000 |
+| Chapter 13 revised          |  5,000 |
+| Chapter 14 revised          |  5,000 |
+| Chapter 15 revised          |  5,000 |
+| Chapter 16 revised          |  5,000 |
+| Chapter 17 revised          |  4,000 |
+| Chapter 18 revised          |  5,000 |
+| Projected volume target     | 91,000 |
 
 A reasonable production range is approximately 80%–110% of the target, or about
 72,800–100,100 words, with 120% as an editorial warning boundary. Because the
@@ -349,4 +349,3 @@ books/modern-java/book.yaml to reflect this plan. Do not change prompts or
 application logic for this planning step. Generate Chapters 13–15 as the next
 batch only after the human/editorial concerns from Chapters 10–12 are resolved
 or explicitly accepted.
-

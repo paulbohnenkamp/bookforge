@@ -6,10 +6,10 @@ evidence for review, not proof of technical correctness.
 
 ## Batch Status
 
-| Chapter | Status | Quality verdict | Machine metrics | Tokens |
-| --- | --- | --- | ---: | ---: |
-| 16. Modernizing a Java 8 Codebase | needs_review | pass_with_warnings | 5,664 words; 13 code blocks | 67,251 |
-| 17. Senior Java Interview Preparation | needs_review | pass_with_warnings | 4,495 words; 14 code blocks | 59,869 |
+| Chapter                                                   | Status       | Quality verdict    |             Machine metrics | Tokens |
+| --------------------------------------------------------- | ------------ | ------------------ | --------------------------: | -----: |
+| 16. Modernizing a Java 8 Codebase                         | needs_review | pass_with_warnings | 5,664 words; 13 code blocks | 67,251 |
+| 17. Senior Java Interview Preparation                     | needs_review | pass_with_warnings | 4,495 words; 14 code blocks | 59,869 |
 | 18. Exercises and Solutions: Design a Modern Java Service | needs_review | pass_with_warnings | 4,185 words; 18 code blocks | 74,783 |
 
 All three chapters completed Writer → Reviewer → Rewriter → Quality Validation

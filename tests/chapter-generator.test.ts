@@ -27,7 +27,30 @@ async function createWorkspace(): Promise<{ root: string; generator: ChapterGene
   await mkdir(bookDirectory, { recursive: true });
   await writeFile(
     path.join(bookDirectory, 'book.yaml'),
-    `book:\n  id: sample\n  title: Sample Book\n  subtitle: A local test\n  audience:\n    - Engineers\nstyle:\n  tone: direct\n  includeInterviewQuestions: true\n  includeExercises: true\noutput:\n  markdown: true\n  zip: false\nchapters:\n  - id: first\n    title: First Topic\n    targetWords: 100\n`,
+    `book:
+  id: sample
+  title: Sample Book
+  subtitle: A local test
+  audience:
+    - Engineers
+style:
+  tone: direct
+  includeInterviewQuestions: true
+  includeExercises: true
+output:
+  markdown: true
+  zip: false
+chapters:
+  - id: first
+    title: First Topic
+    targetWords: 100
+    objectives:
+      - Explain the topic.
+      - Compare approaches.
+      - Apply the ideas.
+    topics:
+      - Topic fundamentals
+`,
   );
   const generator = new ChapterGenerator(
     new BookResolver(booksDirectory),

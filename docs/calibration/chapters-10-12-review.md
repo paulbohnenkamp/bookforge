@@ -8,11 +8,11 @@ performed.
 
 ## Batch Summary
 
-| Chapter | Status | Quality verdict | Metrics | Validation |
-| --- | --- | --- | --- | --- |
-| 10. Concurrency Foundations and Safe Shared State | needs_review | pass_with_warnings | 5,158 words; 23 code blocks | 3 Java examples compiled with \`javac --release 21\`; 1 warning |
-| 11. Virtual Threads and Thread-Per-Task Design | needs_review | pass_with_warnings | 5,232 words; 20 code blocks | no executable validator result; 2 warnings |
-| 12. JVM Memory and Garbage Collection | needs_review | pass_with_warnings | 6,318 words; 13 code blocks | no executable validator result; 1 warning and 8 informational findings |
+| Chapter                                           | Status       | Quality verdict    | Metrics                     | Validation                                                             |
+| ------------------------------------------------- | ------------ | ------------------ | --------------------------- | ---------------------------------------------------------------------- |
+| 10. Concurrency Foundations and Safe Shared State | needs_review | pass_with_warnings | 5,158 words; 23 code blocks | 3 Java examples compiled with \`javac --release 21\`; 1 warning        |
+| 11. Virtual Threads and Thread-Per-Task Design    | needs_review | pass_with_warnings | 5,232 words; 20 code blocks | no executable validator result; 2 warnings                             |
+| 12. JVM Memory and Garbage Collection             | needs_review | pass_with_warnings | 6,318 words; 13 code blocks | no executable validator result; 1 warning and 8 informational findings |
 
 The chapter metrics are the engine's Markdown counts. The chapter Reviewers use
 a broader count that includes prose, headings, bullets, and code identifiers.
@@ -255,4 +255,3 @@ pass on this batch. The prompts and style guide do not require changes based on
 these findings, but Chapters 10–12 contain enough concrete correctness and
 operational-lifecycle issues that reviewing them first will reduce the risk of
 propagating incorrect concurrency and JVM guidance into Chapters 13–15.
-

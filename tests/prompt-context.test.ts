@@ -7,8 +7,20 @@ const book = parseBook({
   style: { tone: 'direct', includeInterviewQuestions: true, includeExercises: false },
   output: { markdown: true, zip: false },
   chapters: [
-    { id: 'first', title: 'First Topic', targetWords: 100 },
-    { id: 'second', title: 'Second Topic', targetWords: 200 },
+    {
+      id: 'first',
+      title: 'First Topic',
+      targetWords: 100,
+      objectives: ['Explain the topic', 'Compare approaches', 'Apply the ideas'],
+      topics: ['Topic fundamentals'],
+    },
+    {
+      id: 'second',
+      title: 'Second Topic',
+      targetWords: 200,
+      objectives: ['Explain the topic', 'Compare approaches', 'Apply the ideas'],
+      topics: ['Topic fundamentals'],
+    },
   ],
 });
 const chapter: Chapter =

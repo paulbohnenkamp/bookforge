@@ -7,11 +7,11 @@ pipeline and remain needs_review; no automatic approval was performed.
 
 ## Batch Summary
 
-| Chapter | Status | Quality | Metrics | Main findings |
-| --- | --- | --- | --- | --- |
-| 13. Performance Measurement Without Guesswork | needs_review | pass_with_warnings | 5,923 words; 6 code blocks | 1 warning; 4 inferred-intent findings |
-| 14. Maintainable Java API Design | needs_review | pass_with_warnings | 6,354 words; 27 code blocks | 3 warnings |
-| 15. Testing Modern Java Systems | needs_review | pass_with_warnings | 5,174 words; 13 code blocks | 2 warnings; 1 inferred-intent finding |
+| Chapter                                       | Status       | Quality            | Metrics                     | Main findings                         |
+| --------------------------------------------- | ------------ | ------------------ | --------------------------- | ------------------------------------- |
+| 13. Performance Measurement Without Guesswork | needs_review | pass_with_warnings | 5,923 words; 6 code blocks  | 1 warning; 4 inferred-intent findings |
+| 14. Maintainable Java API Design              | needs_review | pass_with_warnings | 6,354 words; 27 code blocks | 3 warnings                            |
+| 15. Testing Modern Java Systems               | needs_review | pass_with_warnings | 5,174 words; 13 code blocks | 2 warnings; 1 inferred-intent finding |
 
 The engine's word counts differ from the Reviewer's broader whitespace-delimited
 counts. Chapter 13 is reported by the Reviewer at approximately 6,700 words,
@@ -271,4 +271,3 @@ Review in this order:
 
 All three chapters should remain needs_review until these items are resolved or
 explicitly accepted by a human reviewer.
-
