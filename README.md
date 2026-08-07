@@ -33,14 +33,14 @@ Never commit `OPENAI_API_KEY`.
 ## Mock workflow
 
 ```bash
-npm run dev -- validate books/modern-java/book.yaml
-npm run dev -- generate modern-java --chapter 2 --provider mock
-npm run dev -- quality modern-java --chapter 2
-npm run dev -- approve modern-java --chapter 2 --by "Paul"
-npm run dev -- status modern-java
-npm run dev -- assemble modern-java
-npm run dev -- export modern-java --format pdf
-npm run dev -- export modern-java --format zip
+npm run dev -- validate books/bookforge-tutorial/book.yaml
+npm run dev -- generate bookforge-tutorial --chapter 1 --provider mock
+npm run dev -- quality bookforge-tutorial --chapter 1
+npm run dev -- approve bookforge-tutorial --chapter 1 --by "Paul"
+npm run dev -- status bookforge-tutorial
+npm run dev -- assemble bookforge-tutorial
+npm run dev -- export bookforge-tutorial --format pdf
+npm run dev -- export bookforge-tutorial --format zip
 ```
 
 Mock mode is deterministic and never calls an external API. Use `--include-needs-review`
@@ -56,7 +56,7 @@ export BOOKFORGE_MODEL='your-model-id'
 export BOOKFORGE_TEMPERATURE=0.2
 export BOOKFORGE_MAX_RETRIES=3
 export BOOKFORGE_REQUEST_TIMEOUT_MS=120000
-npm run dev -- generate modern-java --chapter 2 --provider openai
+npm run dev -- generate bookforge-tutorial --chapter 1 --provider openai
 ```
 
 The provider records optional model, request ID, and token usage metadata. Retries
@@ -66,10 +66,10 @@ technical claims and code before approval.
 ## Quality and snippets
 
 ```bash
-npm run dev -- quality modern-java --chapter 2
-npm run dev -- quality modern-java --all --strict --json
-npm run dev -- reject modern-java --chapter 2 --reason "Needs a technical edit" --by "Paul"
-npm run dev -- review-status modern-java
+npm run dev -- quality bookforge-tutorial --chapter 1
+npm run dev -- quality bookforge-tutorial --all --strict --json
+npm run dev -- reject bookforge-tutorial --chapter 1 --reason "Needs a technical edit" --by "Paul"
+npm run dev -- review-status bookforge-tutorial
 ```
 
 Chapters may define a `canonicalExample` in YAML. Code fences may declare
@@ -88,17 +88,17 @@ generated application code and never downloads compilers.
 Default assembly requires every included chapter to be human-approved:
 
 ```bash
-npm run dev -- assemble modern-java
-npm run dev -- assemble modern-java --include-needs-review --allow-incomplete
+npm run dev -- assemble bookforge-tutorial
+npm run dev -- assemble bookforge-tutorial --include-needs-review --allow-incomplete
 ```
 
 For a partial draft, scope assembly and export explicitly. The selected range is
 one-based and remains marked incomplete:
 
 ```bash
-npm run dev -- assemble modern-java --from 1 --to 3 --include-needs-review --allow-incomplete
-npm run dev -- export modern-java --format pdf --from 1 --to 3 --include-needs-review
-npm run dev -- export modern-java --format zip --from 1 --to 3 --include-needs-review
+npm run dev -- assemble bookforge-tutorial --from 1 --to 3 --include-needs-review --allow-incomplete
+npm run dev -- export bookforge-tutorial --format pdf --from 1 --to 3 --include-needs-review
+npm run dev -- export bookforge-tutorial --format zip --from 1 --to 3 --include-needs-review
 ```
 
 Scoped table-of-contents links target stable anchors in `combined.md`. Older
@@ -108,7 +108,7 @@ publication package.
 Generated output includes:
 
 ```text
-generated/modern-java/
+generated/bookforge-tutorial/
 ├── README.md
 ├── TABLE_OF_CONTENTS.md
 ├── approval-status.md
@@ -124,8 +124,8 @@ generated/modern-java/
 │   ├── quality-report.md
 │   └── quality-report.json
 └── exports/
-    ├── modern-java-and-object-oriented-design.pdf
-    └── Modern-Java-and-Object-Oriented-Design.zip
+    ├── bookforge-tutorial.pdf
+    └── BookForge-Tutorial.zip
 ```
 
 The PDF is rendered from assembled Markdown using Playwright Chromium, with CSS
@@ -136,9 +136,9 @@ publication Markdown by default; internal workfiles and state are excluded.
 Cleaning requires an explicit target and protects manually modified chapter content:
 
 ```bash
-npm run dev -- clean modern-java --chapter 2 --dry-run
-npm run dev -- clean modern-java --chapter 2 --force
-npm run dev -- clean modern-java --all --force
+npm run dev -- clean bookforge-tutorial --chapter 1 --dry-run
+npm run dev -- clean bookforge-tutorial --chapter 1 --force
+npm run dev -- clean bookforge-tutorial --all --force
 ```
 
 The engine remains generic: book-specific behavior belongs in YAML and editable
@@ -210,5 +210,13 @@ npm run dev -- quality <book-id> --chapter 1
 
 Use a mock pilot before any paid generation. After human review, approve chapters
 and assemble or export using the same commands shown above, replacing
-`modern-java` with the new book ID. Each book gets independent state and output
+`bookforge-tutorial` with the new book ID. Each book gets independent state and output
 under `generated/<book-id>/`.
+
+## Private book specifications
+
+The public repository intentionally includes only `books/bookforge-tutorial/`.
+Most directories under `books/` are ignored so production book plans can remain
+local and private. This ignore rule does not remove specifications that were
+committed in earlier Git history; removing those requires a separate history
+rewrite and coordination with repository users.

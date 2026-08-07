@@ -4,3 +4,9 @@ generated/
 .env
 coverage/
 .DS_Store
+
+# Keep production book specifications local/private by default.
+books/*
+!books/README.md
+!books/bookforge-tutorial/
+!books/bookforge-tutorial/**

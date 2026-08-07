@@ -1,0 +1,166 @@
+book:
+  id: bookforge-tutorial
+  title: BookForge Tutorial
+  subtitle: From Book Specification to Reviewed Publication
+  audience:
+    - engineers learning the BookForge workflow
+    - technical writers designing structured books
+    - teams evaluating local-first book generation
+
+style:
+  tone: practical
+  includeInterviewQuestions: true
+  includeExercises: true
+
+output:
+  markdown: true
+  zip: true
+
+chapters:
+  - id: what-bookforge-is
+    title: What BookForge Is
+    targetWords: 1800
+    objectives:
+      - Explain the purpose and boundaries of BookForge.
+      - Describe the sequential Writer, Reviewer, and Rewriter workflow.
+      - Distinguish automated validation from human approval.
+      - Identify the artifacts produced for one chapter.
+    topics:
+      - local-first generation
+      - provider-independent workflows
+      - chapter lifecycle states
+      - human review
+    topicsToAvoid:
+      - provider-specific implementation details
+      - large-scale deployment architecture
+    canonicalExample:
+      name: tutorial-book
+      description: A small tutorial book whose specification and chapter artifacts evolve throughout this book.
+      entities:
+        - BookSpecification
+        - ChapterSpecification
+        - GenerationState
+        - QualityReport
+      constraints:
+        - Keep the example generic and provider-independent
+        - Treat generated content as a draft until human approval
+        - Keep chapter and artifact identifiers stable
+
+  - id: creating-a-book-specification
+    title: Creating a Book Specification
+    targetWords: 1900
+    objectives:
+      - Define book metadata, style settings, output settings, and chapters in YAML.
+      - Write stable chapter IDs and useful target word counts.
+      - Turn chapter objectives and topics into an actionable scope.
+      - Use canonical-example guidance to preserve terminology across a book.
+    topics:
+      - YAML structure
+      - chapter objectives and topics
+      - canonical examples
+      - scope and deferred topics
+    topicsToAvoid:
+      - YAML parser internals
+      - private production book content
+    canonicalExample:
+      name: tutorial-book
+      description: The same tutorial specification is refined into a validated book plan.
+      entities:
+        - BookSpecification
+        - ChapterSpecification
+        - CanonicalExample
+      constraints:
+        - Every chapter has 3–7 objectives and at least one topic
+        - IDs remain filesystem-safe and stable
+        - Book-specific scope belongs in YAML rather than engine code
+
+  - id: generating-and-reviewing-chapters
+    title: Generating and Reviewing Chapters
+    targetWords: 2000
+    objectives:
+      - Run a mock chapter through Writer, Reviewer, and Rewriter stages.
+      - Explain how prompts, style guidance, and summaries shape a chapter.
+      - Resume from completed artifacts after an interrupted stage.
+      - Inspect drafts and review findings before treating a chapter as ready.
+    topics:
+      - mock generation
+      - prompt context
+      - sequential stages
+      - resume behavior
+      - review artifacts
+    topicsToAvoid:
+      - paid provider operations
+      - full-book generation orchestration
+    canonicalExample:
+      name: tutorial-book
+      description: The tutorial book receives a draft, review, rewrite, and published chapter artifact.
+      entities:
+        - WriterDraft
+        - ReviewerResponse
+        - RewrittenChapter
+        - GenerationState
+      constraints:
+        - Write each completed stage before starting the next
+        - Preserve completed artifacts on failure
+        - Keep mock output deterministic
+
+  - id: quality-validation-and-approval
+    title: Quality Validation and Human Approval
+    targetWords: 2000
+    objectives:
+      - Run Markdown and code-block quality validation on a generated chapter.
+      - Interpret errors, warnings, and informational findings appropriately.
+      - Explain why needs_review is different from approved.
+      - Approve or reject a chapter using current content and summary hashes.
+    topics:
+      - quality reports
+      - snippet intent
+      - optional validators
+      - approval hash protection
+      - rejection and regeneration
+    topicsToAvoid:
+      - claiming automated validation proves technical authority
+      - executing generated application code
+    canonicalExample:
+      name: tutorial-book
+      description: The tutorial book gains a quality report and explicit human-review metadata.
+      entities:
+        - QualityReport
+        - ApprovalRecord
+        - ChapterHash
+        - SummaryHash
+      constraints:
+        - Warnings require human judgment but do not automatically block review
+        - Approval becomes stale when chapter content or summary changes
+        - Validators must report unavailable tools honestly
+
+  - id: assembling-and-exporting-a-book
+    title: Assembling and Exporting a Book
+    targetWords: 1800
+    objectives:
+      - Assemble approved chapters into a readable combined Markdown document.
+      - Generate a stable table of contents and chapter links.
+      - Export a clean publication ZIP without internal workfiles.
+      - Explain draft PDF and incomplete-book safeguards.
+    topics:
+      - Markdown assembly
+      - table of contents
+      - PDF rendering
+      - ZIP publication packages
+      - incomplete and draft notices
+    topicsToAvoid:
+      - web interfaces
+      - databases and background workers
+      - alternate ebook formats
+    canonicalExample:
+      name: tutorial-book
+      description: The completed tutorial book becomes a combined Markdown draft and clean export package.
+      entities:
+        - CombinedMarkdown
+        - TableOfContents
+        - PublicationZip
+        - DraftPdf
+      constraints:
+        - Require human approval for publication-ready assembly
+        - Keep drafts and generation state out of the default ZIP
+        - Preserve clear draft notices when review is incomplete
