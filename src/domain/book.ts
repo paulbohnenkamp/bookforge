@@ -4,8 +4,8 @@ export const chapterSchema = z.object({
   id: z.string().trim().min(1),
   title: z.string().trim().min(1),
   targetWords: z.number().int().positive(),
-  objectives: z.array(z.string().trim().min(1)).min(3).max(7).optional(),
-  topics: z.array(z.string().trim().min(1)).min(1).optional(),
+  objectives: z.array(z.string().trim().min(1)).min(3).max(7),
+  topics: z.array(z.string().trim().min(1)).min(1),
   topicsToAvoid: z.array(z.string().trim().min(1)).min(1).optional(),
   canonicalExample: z
     .object({

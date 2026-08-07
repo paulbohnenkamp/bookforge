@@ -795,33 +795,33 @@ criteria include:
 
 ## Style Guide Compliance
 
-| Rule | Status | Evidence |
-|---|---|---|
-| Deliberate, practical technical-handbook voice | Partial | The voice is strong, but repeated formulaic subsection structures create an AI-reference-manual feel. |
-| Experienced-reader audience; avoid beginner filler | Pass | Explanations target senior decisions and avoid basic syntax tutorials. |
-| Direct, calm, evidence-oriented tone | Pass | Promotional language, fake citations, and fabricated benchmarks were not observed. |
-| Required eight-section chapter structure | Pass | All six current chapters contain the required major sections. |
-| One `#`; `##` majors; `###` subsections; no skipped levels | Pass | Heading scans show one top-level title and valid hierarchy in each current chapter. |
-| Paragraphs generally 2–5 sentences | Partial | Most paragraphs comply, but dense explanations and repeated post-code paragraphs make several sections heavy. |
-| Explain what, why, how, when, tradeoffs, and mistakes | Partial | Coverage is broad, but some tradeoffs remain generic and some concrete contracts are implicit. |
-| Version-specific and experimental claims qualified | Partial | Chapter 1 is cautious; Chapters 2–6 frequently attach caveats too late or omit local version labels. |
-| Every code fence has a language identifier | Pass | Current fences use Java, Bash, text, or other language identifiers. |
-| Snippet intent is explicit and honest | Partial | Most fences have intent metadata, but Chapter 1 has missing intent and Chapters 5–6 have standalone snippets that are not self-contained. |
-| Illustrative omissions explained nearby | Partial | Many are explained, but Chapter 4 domain declarations and Chapter 5/6 supporting types are not consistently identified. |
-| Canonical examples remain stable | Partial | Chapter 2 is strong; legacy names within Chapter 2 and repeated `Order` examples in later chapters create ambiguity. |
-| Examples are readable, focused, plausible, and production-aware | Partial | Examples are relevant, but the `Money`, registry, callback, queue-order, and generic API defects are significant. |
-| No unexplained ellipses/placeholders | Partial | Most placeholders are explained, but Chapter 4/5 placeholder warnings and partial implementations need clearer labeling. |
-| Comparisons include context and tradeoffs | Partial | Tradeoffs are frequent, but often expressed as generic “the tradeoff is...” conclusions without decision evidence. |
-| Common Mistakes are realistic and actionable | Pass | The sections contain credible failure modes and alternatives, though some repeat earlier material. |
-| Best Practices are contextual, not universal | Partial | Many use “prefer” and “when”; some repeat Common Mistakes and still read like generalized advice. |
-| Interview questions test understanding with model answers | Pass | Questions are senior-oriented and avoid trivia; some answers duplicate chapter prose. |
-| Exercises reinforce design and implementation | Partial | Exercises are generally meaningful, but Chapter 5 Exercise 5 is incoherent and several exercises lack observable outputs. |
-| Key Takeaways are concise and non-repetitive | Partial | They are useful but sometimes replay Best Practices; Chapter 6 has nine bullets. |
-| Historical/version context is selective | Partial | Chapter 1 becomes release-catalog-like; later chapters under-label version boundaries. |
-| Avoid AI-like repetition and artificial transitions | Partial | No obvious filler, but repeated “A useful”, “The important”, “The tradeoff”, and mirrored section structures are systematic. |
-| Links, accessibility, and tables are usable | Pass | The reviewed chapters do not rely on fabricated links; tables generally have clear headers. |
-| Chapter length stays within 80–120% guidance | Fail | Chapters 2–5 are materially over target by reviewer counts; Chapter 6 is also dense and over the reported range. |
-| Final reader can explain, apply, compare, and discuss the topic | Partial | The conceptual material supports this, but unresolved example defects prevent publication readiness. |
+| Rule                                                            | Status  | Evidence                                                                                                                                  |
+| --------------------------------------------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Deliberate, practical technical-handbook voice                  | Partial | The voice is strong, but repeated formulaic subsection structures create an AI-reference-manual feel.                                     |
+| Experienced-reader audience; avoid beginner filler              | Pass    | Explanations target senior decisions and avoid basic syntax tutorials.                                                                    |
+| Direct, calm, evidence-oriented tone                            | Pass    | Promotional language, fake citations, and fabricated benchmarks were not observed.                                                        |
+| Required eight-section chapter structure                        | Pass    | All six current chapters contain the required major sections.                                                                             |
+| One `#`; `##` majors; `###` subsections; no skipped levels      | Pass    | Heading scans show one top-level title and valid hierarchy in each current chapter.                                                       |
+| Paragraphs generally 2–5 sentences                              | Partial | Most paragraphs comply, but dense explanations and repeated post-code paragraphs make several sections heavy.                             |
+| Explain what, why, how, when, tradeoffs, and mistakes           | Partial | Coverage is broad, but some tradeoffs remain generic and some concrete contracts are implicit.                                            |
+| Version-specific and experimental claims qualified              | Partial | Chapter 1 is cautious; Chapters 2–6 frequently attach caveats too late or omit local version labels.                                      |
+| Every code fence has a language identifier                      | Pass    | Current fences use Java, Bash, text, or other language identifiers.                                                                       |
+| Snippet intent is explicit and honest                           | Partial | Most fences have intent metadata, but Chapter 1 has missing intent and Chapters 5–6 have standalone snippets that are not self-contained. |
+| Illustrative omissions explained nearby                         | Partial | Many are explained, but Chapter 4 domain declarations and Chapter 5/6 supporting types are not consistently identified.                   |
+| Canonical examples remain stable                                | Partial | Chapter 2 is strong; legacy names within Chapter 2 and repeated `Order` examples in later chapters create ambiguity.                      |
+| Examples are readable, focused, plausible, and production-aware | Partial | Examples are relevant, but the `Money`, registry, callback, queue-order, and generic API defects are significant.                         |
+| No unexplained ellipses/placeholders                            | Partial | Most placeholders are explained, but Chapter 4/5 placeholder warnings and partial implementations need clearer labeling.                  |
+| Comparisons include context and tradeoffs                       | Partial | Tradeoffs are frequent, but often expressed as generic “the tradeoff is...” conclusions without decision evidence.                        |
+| Common Mistakes are realistic and actionable                    | Pass    | The sections contain credible failure modes and alternatives, though some repeat earlier material.                                        |
+| Best Practices are contextual, not universal                    | Partial | Many use “prefer” and “when”; some repeat Common Mistakes and still read like generalized advice.                                         |
+| Interview questions test understanding with model answers       | Pass    | Questions are senior-oriented and avoid trivia; some answers duplicate chapter prose.                                                     |
+| Exercises reinforce design and implementation                   | Partial | Exercises are generally meaningful, but Chapter 5 Exercise 5 is incoherent and several exercises lack observable outputs.                 |
+| Key Takeaways are concise and non-repetitive                    | Partial | They are useful but sometimes replay Best Practices; Chapter 6 has nine bullets.                                                          |
+| Historical/version context is selective                         | Partial | Chapter 1 becomes release-catalog-like; later chapters under-label version boundaries.                                                    |
+| Avoid AI-like repetition and artificial transitions             | Partial | No obvious filler, but repeated “A useful”, “The important”, “The tradeoff”, and mirrored section structures are systematic.              |
+| Links, accessibility, and tables are usable                     | Pass    | The reviewed chapters do not rely on fabricated links; tables generally have clear headers.                                               |
+| Chapter length stays within 80–120% guidance                    | Fail    | Chapters 2–5 are materially over target by reviewer counts; Chapter 6 is also dense and over the reported range.                          |
+| Final reader can explain, apply, compare, and discuss the topic | Partial | The conceptual material supports this, but unresolved example defects prevent publication readiness.                                      |
 
 ## Prompt Improvement Opportunities
 

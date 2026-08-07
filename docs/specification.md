@@ -116,10 +116,31 @@ chapters:
   - id: introduction
     title: Modern Java in Context
     targetWords: 3500
+    objectives:
+      - Explain the central mental model for the chapter.
+      - Compare relevant design or implementation tradeoffs.
+      - Apply the ideas to a realistic engineering problem.
+    topics:
+      - Core terminology
+      - Practical decisions
 
   - id: oo
     title: Object-Oriented Design
     targetWords: 6000
+    objectives:
+      - Explain the chapter's core concepts precisely.
+      - Evaluate the concepts in production-oriented examples.
+      - Identify tradeoffs and common failure modes.
+    topics:
+      - Core concepts
+      - Worked examples
+      - Common mistakes
+
+Each chapter specification must include a stable `id`, a title, a positive
+`targetWords` value, 3–7 concrete `objectives`, and at least one `topics` entry.
+`topicsToAvoid` and `canonicalExample` are optional. The engine uses these fields
+to keep a book's scope and terminology in the editable prompt context; it does
+not contain technology-specific chapter logic.
 ```
 
 ---

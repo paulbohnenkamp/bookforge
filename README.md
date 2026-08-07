@@ -143,3 +143,68 @@ npm run dev -- clean modern-java --all --force
 
 The engine remains generic: book-specific behavior belongs in YAML and editable
 prompt files, not in TypeScript.
+
+## Creating another book
+
+Create one directory and specification per book:
+
+```text
+books/<book-id>/book.yaml
+```
+
+The book ID must contain only letters, numbers, hyphens, or underscores. Use this
+minimal specification as a starting point:
+
+```yaml
+book:
+  id: distributed-systems
+  title: Distributed Systems in Practice
+  subtitle: A Decision-Oriented Guide
+  audience:
+    - Senior software engineers
+
+style:
+  tone: practical
+  includeInterviewQuestions: true
+  includeExercises: true
+
+output:
+  markdown: true
+  zip: true
+
+chapters:
+  - id: foundations
+    title: Foundations and Failure Models
+    targetWords: 4500
+    objectives:
+      - Explain the central mental models.
+      - Compare the relevant design tradeoffs.
+      - Apply the ideas to a realistic system.
+    topics:
+      - Core terminology
+      - Failure modes
+      - Decision criteria
+    topicsToAvoid:
+      - Vendor-specific implementation details
+```
+
+Every chapter needs a stable `id`, title, positive target word count, 3–7
+objectives, and at least one topic. `topicsToAvoid` and `canonicalExample` are
+optional. The engine supplies the same editable `prompts/*.md` and
+`docs/BOOK_STYLE_GUIDE.md` to every book, so put book-specific scope, terminology,
+examples, and version constraints in `book.yaml`. If different books need
+different writing rules, that is not currently configurable per book; keep the
+shared prompts technology-neutral or plan a focused configuration change first.
+
+Validate before generating:
+
+```bash
+npm run dev -- validate books/<book-id>/book.yaml
+npm run dev -- generate <book-id> --chapter 1 --provider mock
+npm run dev -- quality <book-id> --chapter 1
+```
+
+Use a mock pilot before any paid generation. After human review, approve chapters
+and assemble or export using the same commands shown above, replacing
+`modern-java` with the new book ID. Each book gets independent state and output
+under `generated/<book-id>/`.

@@ -7,10 +7,10 @@ approval was performed.
 
 ## Generation and Quality Summary
 
-| Chapter | Status | Quality | Metrics | Main automated findings |
-| --- | --- | --- | --- | --- |
-| 7. Streams for Clear Data Transformations | needs_review | pass_with_warnings | 5,078 words; 49 code blocks | possible placeholder; objective coverage heuristic |
-| 8. Optional and Explicit Error Design | needs_review | pass_with_warnings | 5,095 words; 41 code blocks | objective coverage heuristic |
+| Chapter                                          | Status       | Quality            | Metrics                     | Main automated findings                                                     |
+| ------------------------------------------------ | ------------ | ------------------ | --------------------------- | --------------------------------------------------------------------------- |
+| 7. Streams for Clear Data Transformations        | needs_review | pass_with_warnings | 5,078 words; 49 code blocks | possible placeholder; objective coverage heuristic                          |
+| 8. Optional and Explicit Error Design            | needs_review | pass_with_warnings | 5,095 words; 41 code blocks | objective coverage heuristic                                                |
 | 9. Records, Sealed Classes, and Pattern Matching | needs_review | pass_with_warnings | 5,201 words; 37 code blocks | inferred snippet intent; possible placeholder; objective coverage heuristic |
 
 The quality report word counts are the engine's Markdown metrics. The Reviewer
@@ -253,4 +253,3 @@ Keep Chapters 7–9 in \`needs_review\`. Do not approve them yet. Chapter 7 is t
 closest to approval after technical corrections are confirmed. Chapter 8 needs
 a focused compatibility and error-contract edit. Chapter 9 requires a
 blocking example-consistency correction before it can be considered ready.
-
