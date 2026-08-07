@@ -144,6 +144,10 @@ npm run dev -- clean modern-java --all --force
 The engine remains generic: book-specific behavior belongs in YAML and editable
 prompt files, not in TypeScript.
 
+## License
+
+BookForge is licensed under the Apache License 2.0. See [LICENSE](LICENSE).
+
 ## Creating another book
 
 Create one directory and specification per book:
