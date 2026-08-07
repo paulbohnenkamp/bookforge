@@ -32,8 +32,8 @@ export class BookResolver {
     } catch (error) {
       if (error instanceof AppError) {
         throw new AppError(
-          `Book '${bookId}' does not exist or is invalid.`,
-          `Check ${specificationPath} and its YAML contents.`,
+          `Book '${bookId}' could not be loaded.\n${error.message}`,
+          error.suggestion ?? `Check ${specificationPath} and its YAML contents.`,
           { cause: error },
         );
       }
