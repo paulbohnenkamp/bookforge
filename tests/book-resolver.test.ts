@@ -12,7 +12,7 @@ describe('BookResolver', () => {
 
   it('reports a missing book', async () => {
     await expect(resolver.resolve('missing-book', 1)).rejects.toThrow(
-      "Book 'missing-book' does not exist or is invalid.",
+      "Book 'missing-book' could not be loaded.\nBook specification not found",
     );
   });
 
