@@ -99,8 +99,8 @@ not invoke the Writer, Reviewer, or Rewriter. After changing either section,
 reassemble and export the book:
 
 ```bash
-npm run dev -- assemble land-agent-learning
-npm run dev -- export land-agent-learning --format all
+npm run dev -- assemble bookforge-tutorial
+npm run dev -- export bookforge-tutorial --format all
 ```
 
 Assembly refreshes the front matter, table of contents, and end matter in the
@@ -240,24 +240,21 @@ and assemble or export using the same commands shown above, replacing
 `bookforge-tutorial` with the new book ID. Each book gets independent state and output
 under `generated/<book-id>/`.
 
-### Generating an existing book specification
+### Generating the repository book
 
-If a request points to an existing specification such as
-`@books/ai-monitor-agents/book.yaml`, generate that specification's actual
-chapter content. Do not create a second specification or turn the subject into
-a book about BookForge. Validate the exact path first, then use its directory
-name as the book ID:
+The public repository book is `books/bookforge-tutorial/book.yaml`. Validate
+that specification before generating content:
 
 ```bash
-npm run dev -- validate books/ai-monitor-agents/book.yaml
-npm run dev -- generate ai-monitor-agents --provider mock
-npm run dev -- quality ai-monitor-agents --all
-npm run dev -- assemble ai-monitor-agents --include-needs-review --allow-incomplete
+npm run dev -- validate books/bookforge-tutorial/book.yaml
+npm run dev -- generate bookforge-tutorial --provider mock
+npm run dev -- quality bookforge-tutorial --all
+npm run dev -- assemble bookforge-tutorial --include-needs-review --allow-incomplete
 ```
 
 The `generate` command is content generation. Creating or editing
-`books/<book-id>/book.yaml` is a separate task and should happen only when the
-user asks for a new or revised specification. Generated chapters remain drafts
+`books/bookforge-tutorial/book.yaml` is a separate task and should happen only
+when the user asks for a revised specification. Generated chapters remain drafts
 until human approval.
 
 ## Private book specifications

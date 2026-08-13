@@ -5,9 +5,9 @@ describe('BookResolver', () => {
   const resolver = new BookResolver('books');
 
   it('resolves a book by ID and a chapter by one-based number', async () => {
-    const result = await resolver.resolve('modern-java', 1);
-    expect(result.specificationPath).toContain('books/modern-java/book.yaml');
-    expect(result.chapter.id).toBe('introduction');
+    const result = await resolver.resolve('bookforge-tutorial', 1);
+    expect(result.specificationPath).toContain('books/bookforge-tutorial/book.yaml');
+    expect(result.chapter.id).toBe('what-bookforge-is');
   });
 
   it('reports a missing book', async () => {
@@ -17,8 +17,8 @@ describe('BookResolver', () => {
   });
 
   it('reports a missing chapter', async () => {
-    await expect(resolver.resolve('modern-java', 99)).rejects.toThrow(
-      "Chapter 99 does not exist in book 'modern-java'.",
+    await expect(resolver.resolve('bookforge-tutorial', 99)).rejects.toThrow(
+      "Chapter 99 does not exist in book 'bookforge-tutorial'.",
     );
   });
 });

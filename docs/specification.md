@@ -29,16 +29,16 @@ separate output and is not part of normal book generation.
 
 A developer should be able to run:
 
-    bookforge generate modern-java
+    bookforge generate bookforge-tutorial
 
 and receive
 
     generated/
-        modern-java/
+        bookforge-tutorial/
             01-introduction.md
             ...
             combined.md
-            Modern-Java.zip
+            BookForge-Tutorial.zip
 
 without modifying source code.
 
@@ -82,7 +82,7 @@ book-forge/
 docs/
 specification.md
 books/
-modern-java/
+bookforge-tutorial/
 book.yaml
 prompts/
 writer.md
@@ -105,9 +105,9 @@ Example:
 
 ```yaml
 book:
-  id: modern-java
-  title: Modern Java and Object-Oriented Design
-  subtitle: Practical Java 8–25
+  id: bookforge-tutorial
+  title: BookForge Tutorial
+  subtitle: From Book Specification to Reviewed Publication
   audience:
     - Senior Java developers
     - Interview candidates
@@ -255,27 +255,27 @@ as JSON and Markdown, and automated validation never implies technical authority
 
 # CLI
 
-bookforge validate books/modern-java/book.yaml
+bookforge validate books/bookforge-tutorial/book.yaml
 
-bookforge generate modern-java --chapter 2
+bookforge generate bookforge-tutorial --chapter 2
 
-bookforge generate modern-java
+bookforge generate bookforge-tutorial
 
-bookforge assemble modern-java
+bookforge assemble bookforge-tutorial
 
-bookforge assemble modern-java --from 1 --to 3 --include-needs-review --allow-incomplete
+bookforge assemble bookforge-tutorial --from 1 --to 3 --include-needs-review --allow-incomplete
 
-bookforge export modern-java
+bookforge export bookforge-tutorial
 
-bookforge export modern-java --format pdf --from 1 --to 3 --include-needs-review
+bookforge export bookforge-tutorial --format pdf --from 1 --to 3 --include-needs-review
 
-bookforge export modern-java --format zip --from 1 --to 3 --include-needs-review
+bookforge export bookforge-tutorial --format zip --from 1 --to 3 --include-needs-review
 
-bookforge clean modern-java
+bookforge clean bookforge-tutorial
 
-bookforge approve modern-java --chapter 2
+bookforge approve bookforge-tutorial --chapter 2
 
-bookforge approve modern-java --from 1 --to 3
+bookforge approve bookforge-tutorial --from 1 --to 3
 
 ---
 
@@ -306,7 +306,7 @@ Failures should:
 
 generated/
 
-    modern-java/
+    bookforge-tutorial/
 
         01-introduction.md
 
@@ -316,7 +316,7 @@ generated/
 
         combined.md
 
-        Modern-Java.zip
+        BookForge-Tutorial.zip
 
 ---
 
