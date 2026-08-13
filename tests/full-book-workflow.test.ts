@@ -14,6 +14,7 @@ import { PromptLoader } from '../src/loaders/prompt-loader.js';
 import { MockLlmProvider } from '../src/llm/mock-llm-provider.js';
 import type { LlmProvider } from '../src/llm/llm-provider.js';
 import { ZipExporter } from '../src/generator/zip-exporter.js';
+import { HumanReviewService } from '../src/generator/human-review.js';
 
 const execFileAsync = promisify(execFile);
 const temporaryDirectories: string[] = [];
@@ -85,6 +86,25 @@ style:
 output:
   markdown: true
   zip: true
+story:
+  title: Sample Story
+  premise: A team improves one service over several decisions.
+  cast:
+    - Maya
+  constraints:
+    - Keep the service understandable.
+endMatter:
+  glossary:
+    - term: Boundary
+      definition: A place where ownership and contracts are explicit.
+  indexTerms:
+    - Topic
+  references:
+    - title: Sample Reference
+      url: https://example.com/reference
+  appendix:
+    - title: Sample Appendix
+      content: A final checklist.
 chapters:
   - id: chapter-1
     title: First Topic
@@ -231,6 +251,11 @@ describe('full-book workflow', () => {
     expect(toc).toContain('1. [First Topic](#chapter-01-chapter-1)');
     expect(toc).toContain('3. [Third Topic](#chapter-03-chapter-3)');
     expect(combined).toContain('<a id="chapter-01-chapter-1"></a>');
+    expect(toc).toContain('- [Glossary](#glossary)');
+    expect(combined).toContain('## Glossary');
+    expect(combined).toContain('## Index');
+    expect(combined).toContain('## Bibliography / Reference List');
+    expect(combined).toContain('## Appendix');
 
     const status = await new BookStatusReporter(
       workspace.resolver,
@@ -259,6 +284,28 @@ describe('full-book workflow', () => {
       'chapters/03-chapter-3.md',
       'combined.md',
     ]);
+  });
+
+  it('approves a validated chapter range while preserving per-chapter checks', async () => {
+    const workspace = await createWorkspace();
+    await createFullGenerator(workspace, new MockLlmProvider()).generate({
+      bookId: 'sample',
+      providerName: 'mock',
+    });
+
+    await new HumanReviewService(workspace.resolver, workspace.generatedDirectory).approveRange(
+      'sample',
+      1,
+      2,
+      'Test Approver',
+    );
+
+    const status = await new BookStatusReporter(
+      workspace.resolver,
+      workspace.generatedDirectory,
+    ).getStatus('sample');
+    expect(status.approvedChapters).toBe(2);
+    expect(status.needsReviewChapters).toBe(1);
   });
 
   it('assembles and exports an explicitly scoped partial draft', async () => {

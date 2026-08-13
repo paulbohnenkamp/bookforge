@@ -9,27 +9,148 @@ book:
 
 style:
   tone: practical
-  includeInterviewQuestions: true
-  includeExercises: true
+  includeInterviewQuestions: false
+  includeExercises: false
 
 output:
   markdown: true
   zip: true
 
+frontMatter:
+  version: '1.0'
+  date: '2026-08-12'
+  copyright:
+    notice: 'Educational material for learning the BookForge repository and workflow.'
+  about:
+    audience: Developers learning how to use and extend the BookForge book-generation repository.
+    background: Readers should be comfortable with the command line and basic TypeScript and YAML. No prior BookForge experience is required.
+    conventions:
+      - label: Bold
+        meaning: Important terms, warnings, or decisions.
+      - label: Monospace
+        meaning: Commands, code, paths, filenames, and literal values.
+
+learning:
+  promise: Use the BookForge repository to turn a small YAML book specification into a reviewed Markdown, ZIP, and PDF publication.
+  prerequisites:
+    - basic command-line usage
+    - familiarity with Markdown and YAML
+    - Node.js 22 or newer installed
+  byTheEnd:
+    - explain the complete BookForge chapter lifecycle
+    - create and validate a useful book specification
+    - inspect generated artifacts and resume a safe sequential run
+    - distinguish automated quality findings from human approval
+    - assemble and verify a clean publication package
+  deferred:
+    - building a web interface
+    - adding database or worker infrastructure
+    - implementing additional ebook formats
+    - provider-specific production operations
+  workflow:
+    - id: validate
+      command: npm run dev -- validate books/bookforge-tutorial/book.yaml
+      observation: The CLI reports a valid book with five chapters and does not generate content.
+      artifacts:
+        - books/bookforge-tutorial/book.yaml
+    - id: generate-one
+      command: npm run dev -- generate bookforge-tutorial --chapter 1 --provider mock
+      observation: The sequential chapter workflow writes draft, review, rewrite, quality, summary, and published chapter artifacts, then marks the chapter needs_review.
+      artifacts:
+        - generated/bookforge-tutorial/generation-state.json
+        - generated/bookforge-tutorial/chapters/01-what-bookforge-is/draft.md
+        - generated/bookforge-tutorial/chapters/01-what-bookforge-is/review.md
+        - generated/bookforge-tutorial/chapters/01-what-bookforge-is/rewritten.md
+        - generated/bookforge-tutorial/chapters/01-what-bookforge-is/quality-report.md
+        - generated/bookforge-tutorial/chapters/01-what-bookforge-is/summary.md
+        - generated/bookforge-tutorial/chapters/01-what-bookforge-is/chapter.md
+    - id: quality-one
+      command: npm run dev -- quality bookforge-tutorial --chapter 1
+      observation: The CLI writes a fresh quality report and keeps the chapter in needs_review until a person approves it.
+      artifacts:
+        - generated/bookforge-tutorial/chapters/01-what-bookforge-is/quality-report.json
+        - generated/bookforge-tutorial/chapters/01-what-bookforge-is/quality-report.md
+    - id: resume-one
+      command: npm run dev -- generate bookforge-tutorial --chapter 1 --provider mock
+      observation: Rerunning without --force resumes or skips from the recorded state; it does not overwrite completed approved content.
+      artifacts:
+        - generated/bookforge-tutorial/generation-state.json
+        - generated/bookforge-tutorial/chapters/01-what-bookforge-is
+    - id: approve-one
+      command: npm run dev -- approve bookforge-tutorial --chapter 1 --by "Paul"
+      observation: The approval record stores the reviewer and content hashes; changing the chapter afterward invalidates approval.
+      artifacts:
+        - generated/bookforge-tutorial/generation-state.json
+        - generated/bookforge-tutorial/approval-status.md
+    - id: assemble
+      command: npm run dev -- assemble bookforge-tutorial
+      observation: The assembler includes only approved chapters and writes the combined Markdown, table of contents, README, and approval status.
+      artifacts:
+        - generated/bookforge-tutorial/combined.md
+        - generated/bookforge-tutorial/TABLE_OF_CONTENTS.md
+        - generated/bookforge-tutorial/README.md
+        - generated/bookforge-tutorial/approval-status.md
+    - id: export
+      command: npm run dev -- export bookforge-tutorial --format all
+      observation: The exporter writes the publication ZIP and PDF under generated/bookforge-tutorial/exports.
+      artifacts:
+        - generated/bookforge-tutorial/exports/BookForge-Tutorial.zip
+        - generated/bookforge-tutorial/exports/bookforge-tutorial.pdf
+
+story:
+  title: The First BookForge Publication
+  premise: The reader uses this repository to turn a versioned YAML specification into a reviewed technical book while learning how generation, validation, approval, and publication fit together.
+  cast:
+    - The reader, who runs commands and edits the book specification
+    - The BookForge pipeline, which produces traceable artifacts and state transitions
+    - The human reviewer, who decides whether generated content is ready to publish
+  constraints:
+    - The team uses the mock provider for repeatable local development.
+    - Generated chapters remain drafts until a person explicitly approves them.
+    - The engine stays generic; book-specific terminology and scope belong in YAML and prompts.
+
+endMatter:
+  indexTerms:
+    - Book specification
+    - chapter lifecycle
+    - human approval
+    - quality validation
+    - canonical example
+    - atomic write
+    - publication ZIP
+  glossary:
+    - term: Book specification
+      definition: A validated YAML document that defines a book's metadata, style, output settings, and chapter scope.
+    - term: Needs review
+      definition: The chapter state reached after generation and automated checks, before a person approves or rejects the content.
+    - term: Canonical example
+      definition: A named example and its constraints that keep terminology and design choices consistent within a chapter.
+    - term: Atomic write
+      definition: A file-writing operation that replaces a target only after the complete new content has been written successfully.
+    - term: Publication ZIP
+      definition: A clean export containing assembled Markdown and published chapter copies without internal generation workfiles.
+  appendix:
+    - title: Tutorial Workflow Checklist
+      content: |
+        Validate the YAML, generate with the mock provider, inspect the draft and review,
+        run quality validation, approve each chapter, assemble the complete book, and
+        export the Markdown and ZIP publication artifacts.
+
 chapters:
   - id: what-bookforge-is
-    title: What BookForge Is
+    title: 'Start Here: One Chapter from YAML to Draft'
+    storyBeat: The reader runs the repository's first validation and mock generation commands, then traces one chapter from specification to needs-review artifacts.
     targetWords: 1800
     objectives:
       - Explain the purpose and boundaries of BookForge.
-      - Describe the sequential Writer, Reviewer, and Rewriter workflow.
-      - Distinguish automated validation from human approval.
-      - Identify the artifacts produced for one chapter.
+      - Run validation and one mock chapter generation from the repository root.
+      - Trace the sequential Writer, Reviewer, Rewriter, Validator, and Publisher stages.
+      - Identify the artifacts produced and the meaning of needs_review.
     topics:
-      - local-first generation
-      - provider-independent workflows
-      - chapter lifecycle states
-      - human review
+      - repository setup and first commands
+      - local-first and provider-independent generation
+      - chapter lifecycle states and artifact paths
+      - draft versus approved publication
     topicsToAvoid:
       - provider-specific implementation details
       - large-scale deployment architecture
@@ -47,18 +168,19 @@ chapters:
         - Keep chapter and artifact identifiers stable
 
   - id: creating-a-book-specification
-    title: Creating a Book Specification
+    title: Shape the Book Before Generating It
+    storyBeat: The reader edits book.yaml to define a learning promise, a small chapter path, a recurring example, and explicit exclusions before spending model time.
     targetWords: 1900
     objectives:
-      - Define book metadata, style settings, output settings, and chapters in YAML.
+      - Define a learning promise, audience, style settings, output settings, and chapters in YAML.
       - Write stable chapter IDs and useful target word counts.
       - Turn chapter objectives and topics into an actionable scope.
-      - Use canonical-example guidance to preserve terminology across a book.
+      - Use story, canonical-example, and deferred-topic guidance to preserve learning continuity.
     topics:
-      - YAML structure
-      - chapter objectives and topics
-      - canonical examples
-      - scope and deferred topics
+      - learning contracts and reader outcomes
+      - YAML structure and stable identifiers
+      - chapter objectives, topics, and story beats
+      - canonical examples, scope, and deferred topics
     topicsToAvoid:
       - YAML parser internals
       - private production book content
@@ -75,19 +197,20 @@ chapters:
         - Book-specific scope belongs in YAML rather than engine code
 
   - id: generating-and-reviewing-chapters
-    title: Generating and Reviewing Chapters
+    title: Follow the Chapter Pipeline
+    storyBeat: The reader inspects each sequential stage, compares the draft and review, and resumes safely after an interrupted run without losing completed artifacts.
     targetWords: 2000
     objectives:
       - Run a mock chapter through Writer, Reviewer, and Rewriter stages.
-      - Explain how prompts, style guidance, and summaries shape a chapter.
+      - Explain how prompts, learning guidance, and summaries shape a chapter.
       - Resume from completed artifacts after an interrupted stage.
       - Inspect drafts and review findings before treating a chapter as ready.
     topics:
-      - mock generation
-      - prompt context
-      - sequential stages
-      - resume behavior
-      - review artifacts
+      - mock generation and provider boundaries
+      - prompt context and previous summaries
+      - sequential stage transitions
+      - resume behavior and atomic artifacts
+      - draft, review, rewrite, and summary files
     topicsToAvoid:
       - paid provider operations
       - full-book generation orchestration
@@ -105,7 +228,8 @@ chapters:
         - Keep mock output deterministic
 
   - id: quality-validation-and-approval
-    title: Quality Validation and Human Approval
+    title: Decide Whether the Chapter Is Ready
+    storyBeat: The reader compares automated findings with the actual Markdown, decides what needs correction, and approves only the exact content whose hashes were reviewed.
     targetWords: 2000
     objectives:
       - Run Markdown and code-block quality validation on a generated chapter.
@@ -113,11 +237,11 @@ chapters:
       - Explain why needs_review is different from approved.
       - Approve or reject a chapter using current content and summary hashes.
     topics:
-      - quality reports
-      - snippet intent
-      - optional validators
+      - quality reports and useful warnings
+      - snippet intent and generated-code boundaries
+      - optional validators and honest unavailable-tool reporting
       - approval hash protection
-      - rejection and regeneration
+      - rejection, correction, and regeneration
     topicsToAvoid:
       - claiming automated validation proves technical authority
       - executing generated application code
@@ -135,19 +259,22 @@ chapters:
         - Validators must report unavailable tools honestly
 
   - id: assembling-and-exporting-a-book
-    title: Assembling and Exporting a Book
+    title: Assemble, Export, and Verify the Publication
+    storyBeat: The reader assembles only approved chapters, checks the combined Markdown and end matter, and verifies the clean ZIP and PDF outputs.
     targetWords: 1800
     objectives:
-      - Assemble approved chapters into a readable combined Markdown document.
+      - Assemble approved chapters and configured end matter into a readable combined Markdown document.
       - Generate a stable table of contents and chapter links.
       - Export a clean publication ZIP without internal workfiles.
       - Explain draft PDF and incomplete-book safeguards.
+      - Verify that internal generation workfiles are absent from the publication ZIP.
     topics:
-      - Markdown assembly
-      - table of contents
+      - Markdown assembly and end matter
+      - table of contents and generated index
       - PDF rendering
       - ZIP publication packages
       - incomplete and draft notices
+      - publication verification
     topicsToAvoid:
       - web interfaces
       - databases and background workers

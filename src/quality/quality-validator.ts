@@ -63,8 +63,10 @@ export class QualityValidator {
     const markdownFindings: QualityFinding[] = [];
     const consistencyFindings: QualityFinding[] = [];
     const lines = markdown.split(/\r?\n/);
+    const fencedLineIndexes = this.fencedLineIndexes(lines);
     const headings = lines
       .map((line, index) => ({ line, index: index + 1 }))
+      .filter((item) => !fencedLineIndexes.has(item.index - 1))
       .filter((item) => /^#{1,6}\s+/.test(item.line));
     const h1 = headings.filter((item) => /^#\s+/.test(item.line));
     if (h1.length !== 1 || h1[0]?.line.replace(/^#\s+/, '').trim() !== chapter.title)
@@ -86,16 +88,18 @@ export class QualityValidator {
       previous = level;
     }
     const fences = this.parseCodeBlocks(lines, markdownFindings);
-    for (const section of [
+    const requiredSections = [
       'Why This Matters',
       'Core Concepts',
       'Worked Examples',
       'Common Mistakes',
       'Best Practices',
-      'Interview Questions',
-      'Exercises',
       'Key Takeaways',
-    ])
+    ];
+    if (book.style.includeInterviewQuestions) requiredSections.splice(5, 0, 'Interview Questions');
+    if (book.style.includeExercises)
+      requiredSections.splice(book.style.includeInterviewQuestions ? 6 : 5, 0, 'Exercises');
+    for (const section of requiredSections)
       if (!new RegExp(`^##\\s+.*${section}`, 'im').test(markdown))
         markdownFindings.push({
           severity: 'error',
@@ -307,6 +311,17 @@ export class QualityValidator {
         line: open.line,
       });
     return blocks;
+  }
+  private fencedLineIndexes(lines: string[]): Set<number> {
+    const indexes = new Set<number>();
+    let inside = false;
+    lines.forEach((line, index) => {
+      if (/^```/.test(line)) {
+        indexes.add(index);
+        inside = !inside;
+      } else if (inside) indexes.add(index);
+    });
+    return indexes;
   }
   private groupBlocks(blocks: CodeBlock[]): CodeBlock[][] {
     const groups: CodeBlock[][] = [];

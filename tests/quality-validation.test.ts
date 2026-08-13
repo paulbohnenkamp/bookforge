@@ -40,4 +40,10 @@ describe('QualityValidator', () => {
       report.consistencyFindings.some((finding) => finding.code === 'CONFLICTING_FILENAME'),
     ).toBe(true);
   });
+
+  it('does not count Markdown-looking lines inside code fences as headings', async () => {
+    const markdown = `# Quality Chapter\n\n## Why This Matters\nWhy.\n\n## Core Concepts\nConcept.\n\n## Worked Examples\n\n\`\`\`yaml intent=illustrative\nspring:\n  config: # application-local.yaml\n    activate:\n      on-profile: local\n\`\`\`\n\n## Common Mistakes\nMistake.\n\n## Best Practices\nPractice.\n\n## Interview Questions\n### What is quality?\nA model answer explains the tradeoff.\n\n## Exercises\n### Exercise One\nExpected outcome.\n\n## Key Takeaways\n- Quality is contextual.\n`;
+    const report = await new QualityValidator([]).validate(book, chapter, 1, 'sample', markdown);
+    expect(report.markdownFindings.some((finding) => finding.code === 'CHAPTER_TITLE')).toBe(false);
+  });
 });

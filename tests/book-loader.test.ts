@@ -40,4 +40,35 @@ describe('BookLoader', () => {
     );
     await rm(directory, { recursive: true, force: true });
   });
+
+  it('normalizes configuration accidentally nested under book metadata', async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'bookforge-nested-spec-'));
+    const filePath = path.join(directory, 'book.yaml');
+    await writeFile(
+      filePath,
+      `book:
+  id: nested
+  title: Nested
+  style:
+    tone: practical
+  output:
+    markdown: true
+  chapters:
+    - id: first
+      title: First
+      targetWords: 100
+      objectives:
+        - One
+        - Two
+        - Three
+      topics:
+        - Basics
+`,
+    );
+
+    const book = await new BookLoader().load(filePath);
+    expect(book.book.id).toBe('nested');
+    expect(book.chapters[0]?.title).toBe('First');
+    await rm(directory, { recursive: true, force: true });
+  });
 });

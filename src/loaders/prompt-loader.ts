@@ -12,6 +12,15 @@ export class PromptLoader {
     return this.fileLoader.load(filePath, `prompt '${name}'`);
   }
 
+  public async loadOptional(name: string): Promise<string | undefined> {
+    try {
+      return await this.load(name);
+    } catch (error) {
+      if (error instanceof Error && 'cause' in error) return undefined;
+      return undefined;
+    }
+  }
+
   public async loadFile(filePath: string, description: string): Promise<string> {
     return this.fileLoader.load(filePath, description);
   }

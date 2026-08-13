@@ -5,7 +5,7 @@ The pipeline is sequential and provider-independent:
 
 ```text
 Generate → Review → Rewrite → Quality validation → Needs human review
-→ Human approval → Assemble → PDF or ZIP export
+→ Human approval → Assemble → PDF, EPUB, or ZIP export
 ```
 
 Automated validation is not human approval. Generated technical content remains a
@@ -40,7 +40,9 @@ npm run dev -- approve bookforge-tutorial --chapter 1 --by "Paul"
 npm run dev -- status bookforge-tutorial
 npm run dev -- assemble bookforge-tutorial
 npm run dev -- export bookforge-tutorial --format pdf
+npm run dev -- export bookforge-tutorial --format epub
 npm run dev -- export bookforge-tutorial --format zip
+npm run dev -- export bookforge-tutorial --format all
 ```
 
 Mock mode is deterministic and never calls an external API. Use `--include-needs-review`
@@ -72,6 +74,13 @@ npm run dev -- reject bookforge-tutorial --chapter 1 --reason "Needs a technical
 npm run dev -- review-status bookforge-tutorial
 ```
 
+Approve a reviewed range sequentially. Each chapter still requires its own fresh
+quality report and approval hash checks:
+
+```bash
+npm run dev -- approve bookforge-tutorial --from 1 --to 5 --by "Paul"
+```
+
 Chapters may define a `canonicalExample` in YAML. Code fences may declare
 `intent=illustrative`, `intent=standalone`, or `intent=compilable`, with
 `example=... file=...` metadata for multi-file examples. Missing intent is reported
@@ -84,6 +93,19 @@ uses strict `tsc`, and Python uses syntax-only `py_compile`. BookForge never exe
 generated application code and never downloads compilers.
 
 ## Assembly and exports
+
+Front matter and end matter are deterministic outputs of `book.yaml`; they do
+not invoke the Writer, Reviewer, or Rewriter. After changing either section,
+reassemble and export the book:
+
+```bash
+npm run dev -- assemble land-agent-learning
+npm run dev -- export land-agent-learning --format all
+```
+
+Assembly refreshes the front matter, table of contents, and end matter in the
+assembled publication. Chapter Markdown and generation state are not changed;
+the normal approval rules still apply.
 
 Default assembly requires every included chapter to be human-approved:
 
@@ -99,6 +121,7 @@ one-based and remains marked incomplete:
 npm run dev -- assemble bookforge-tutorial --from 1 --to 3 --include-needs-review --allow-incomplete
 npm run dev -- export bookforge-tutorial --format pdf --from 1 --to 3 --include-needs-review
 npm run dev -- export bookforge-tutorial --format zip --from 1 --to 3 --include-needs-review
+npm run dev -- export bookforge-tutorial --format epub --from 1 --to 3 --include-needs-review
 ```
 
 Scoped table-of-contents links target stable anchors in `combined.md`. Older
@@ -125,13 +148,17 @@ generated/bookforge-tutorial/
 │   └── quality-report.json
 └── exports/
     ├── bookforge-tutorial.pdf
+    ├── bookforge-tutorial.epub
     └── BookForge-Tutorial.zip
 ```
 
 The PDF is rendered from assembled Markdown using Playwright Chromium, with CSS
 page breaks, code/table styling, page numbers, and draft notices. If Chromium is not
 installed, export fails clearly and leaves no partial PDF. The ZIP contains only
-publication Markdown by default; internal workfiles and state are excluded.
+publication Markdown by default; internal workfiles and state are excluded. EPUB
+is a reflowable EPUB 3 package built directly from approved chapter Markdown,
+with responsive typography, tables, code blocks, navigation, and optional cover
+metadata.
 
 Cleaning requires an explicit target and protects manually modified chapter content:
 
@@ -212,6 +239,26 @@ Use a mock pilot before any paid generation. After human review, approve chapter
 and assemble or export using the same commands shown above, replacing
 `bookforge-tutorial` with the new book ID. Each book gets independent state and output
 under `generated/<book-id>/`.
+
+### Generating an existing book specification
+
+If a request points to an existing specification such as
+`@books/ai-monitor-agents/book.yaml`, generate that specification's actual
+chapter content. Do not create a second specification or turn the subject into
+a book about BookForge. Validate the exact path first, then use its directory
+name as the book ID:
+
+```bash
+npm run dev -- validate books/ai-monitor-agents/book.yaml
+npm run dev -- generate ai-monitor-agents --provider mock
+npm run dev -- quality ai-monitor-agents --all
+npm run dev -- assemble ai-monitor-agents --include-needs-review --allow-incomplete
+```
+
+The `generate` command is content generation. Creating or editing
+`books/<book-id>/book.yaml` is a separate task and should happen only when the
+user asks for a new or revised specification. Generated chapters remain drafts
+until human approval.
 
 ## Private book specifications
 

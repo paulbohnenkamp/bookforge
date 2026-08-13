@@ -48,6 +48,8 @@ describe('PromptContextBuilder', () => {
     expect(rendered).toContain('STYLE GUIDE');
     expect(rendered).toContain('WRITER PROMPT');
     expect(rendered).toContain('Second Topic');
+    expect(rendered).toContain('write the actual chapter content described by this specification');
+    expect(rendered).toContain('Do not write about BookForge');
   });
 
   it('rejects an empty prior-stage response', () => {

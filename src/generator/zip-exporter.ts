@@ -14,6 +14,7 @@ export interface ZipExportOptions {
   includeNeedsReview?: boolean;
   from?: number;
   to?: number;
+  epubPath?: string;
 }
 
 export interface ZipExportResult {
@@ -40,6 +41,11 @@ export class ZipExporter {
     ];
     const entries = sourceFiles.map((file) => file.entry);
     for (const file of sourceFiles) await this.requireFile(file.path, file.entry);
+    if (options.epubPath) {
+      await this.requireFile(options.epubPath, 'book.epub');
+      sourceFiles.push({ path: options.epubPath, entry: 'book.epub' });
+      entries.push('book.epub');
+    }
 
     for (let number = range.from; number <= range.to; number += 1) {
       const chapter = resolved.book.chapters[number - 1];

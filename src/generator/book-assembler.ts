@@ -7,6 +7,20 @@ import { BookResolver } from './book-resolver.js';
 import type { Book } from '../domain/book.js';
 import { GenerationStateStore, type GenerationState } from './generation-state.js';
 import { chapterDirectoryPath, chapterDirectoryName } from './paths.js';
+import type { PublicationDefaults } from '../domain/publication.js';
+
+function defaultPublication(): PublicationDefaults {
+  return {
+    author: 'DecisionForge, LLC',
+    organization: 'DecisionForge, LLC',
+    version: '1.0',
+    date: new Date().toISOString().slice(0, 10),
+    copyrightNotice:
+      'Educational material only; verify live technical, legal, and operational decisions against authoritative sources.',
+    license: 'All rights reserved unless separately stated.',
+    trademarks: ['DecisionForge'],
+  };
+}
 
 export interface AssemblyOptions {
   bookId: string;
@@ -30,6 +44,7 @@ export class BookAssembler {
     private readonly resolver: BookResolver,
     private readonly generatedDirectory: string,
     private readonly writer = new AtomicFileWriter(),
+    private readonly publication?: PublicationDefaults,
   ) {}
   public async assemble(options: AssemblyOptions): Promise<AssemblyResult> {
     const resolved = await this.resolver.resolve(options.bookId, 1);
@@ -91,7 +106,12 @@ export class BookAssembler {
         `Cannot assemble book '${options.bookId}': chapters ${missing.join(', ')} are missing or not human-approved.`,
         'Approve chapters or use --include-needs-review and/or --allow-incomplete.',
       );
-    const toc = this.renderTableOfContents(included);
+    const completeBook =
+      missing.length === 0 && range.from === 1 && range.to === resolved.book.chapters.length;
+    const toc = this.renderTableOfContents(
+      included,
+      completeBook ? resolved.book.endMatter : undefined,
+    );
     const combined = this.renderCombined(
       resolved.book,
       toc,
@@ -125,10 +145,30 @@ export class BookAssembler {
       approvalStatusPath,
     };
   }
+
   private renderTableOfContents(
     chapters: Array<{ number: number; id: string; title: string }>,
+    endMatter: Book['endMatter'] | undefined,
   ): string {
-    return `# Table of Contents\n\n${chapters.map((chapter) => `${chapter.number}. [${chapter.title}](#chapter-${chapterDirectoryName(chapter.number, chapter.id)})`).join('\n')}\n`;
+    const chapterLines = chapters
+      .map(
+        (chapter) =>
+          `${chapter.number}. [${chapter.title}](#chapter-${chapterDirectoryName(chapter.number, chapter.id)})`,
+      )
+      .join('\n');
+    const endMatterLines = endMatter
+      ? [
+          endMatter.glossary?.length ? '- [Glossary](#glossary)' : '',
+          endMatter.indexTerms?.length ? '- [Index](#index)' : '',
+          endMatter.references?.length
+            ? '- [Bibliography / Reference List](#bibliography--reference-list)'
+            : '',
+          endMatter.appendix?.length ? '- [Appendix](#appendix)' : '',
+        ]
+          .filter(Boolean)
+          .join('\n')
+      : '';
+    return `# Table of Contents\n\n${chapterLines}${endMatterLines ? `\n\n## End Matter\n\n${endMatterLines}` : ''}\n`;
   }
   private renderCombined(
     book: Book,
@@ -148,8 +188,73 @@ export class BookAssembler {
           `\n\n---\n\n<a id="chapter-${chapterDirectoryName(chapter.number, chapter.id)}"></a>\n\n${this.demoteHeadings(chapter.content.trim())}`,
       )
       .join('');
+    const endMatter = incomplete ? '' : this.renderEndMatter(book, chapters);
     const embeddedToc = toc.trim().replace(/^# /, '## ');
-    return `# ${book.book.title}\n\n${book.book.subtitle ? `${book.book.subtitle}\n\n` : ''}${book.book.audience?.length ? `Audience: ${book.book.audience.join(', ')}\n\n` : ''}${notice}\n${embeddedToc}${chapterContent}\n`;
+    return `${this.renderFrontMatter(book)}\n\n${notice}\n${embeddedToc}${chapterContent}${endMatter}\n`;
+  }
+
+  private renderFrontMatter(book: Book): string {
+    const frontMatter = book.frontMatter;
+    const publication = this.publication ?? defaultPublication();
+    const author = frontMatter?.author ?? book.book.author ?? publication.author;
+    const lines = [
+      `# ${book.book.title}`,
+      book.book.subtitle ?? '',
+      `Author: ${author}`,
+      `Organization: ${frontMatter?.organization ?? publication.organization}`,
+      `Version: ${frontMatter?.version ?? publication.version}`,
+      `Date: ${frontMatter?.date ?? publication.date}`,
+      '',
+      `## Copyright & Legal\n\n${frontMatter?.copyright?.notice ?? publication.copyrightNotice}`,
+      `\n\nLicense: ${frontMatter?.copyright?.license ?? publication.license}`,
+      `\n\nTrademarks: ${(frontMatter?.copyright?.trademarks ?? publication.trademarks).join('; ')}`,
+      '',
+      '## About This Manual',
+      `\n\n### Intended Audience\n\n${frontMatter?.about?.audience ?? (book.book.audience?.join('; ') || 'Readers who want to understand and use this material.')}`,
+      frontMatter?.about?.background
+        ? `\n\n### Background Assumed\n\n${frontMatter.about.background}`
+        : '',
+      frontMatter?.about?.conventions?.length
+        ? `\n\n### Conventions\n\n${frontMatter.about.conventions.map((item) => `- **${item.label}**: ${item.meaning}`).join('\n')}`
+        : '\n\n### Conventions\n\n- **Bold** identifies important terms or warnings.\n- `Monospace` identifies commands, code, paths, and literal values.',
+    ];
+    return `${lines.filter((line, index) => line !== '' || index === 0).join('\n')}\n`;
+  }
+
+  private renderEndMatter(
+    book: Book,
+    chapters: Array<{ number: number; content: string }>,
+  ): string {
+    const endMatter = book.endMatter;
+    if (!endMatter) return '';
+    const sections: string[] = [];
+    if (endMatter.glossary?.length)
+      sections.push(
+        `\n\n---\n\n<a id="glossary"></a>\n\n## Glossary\n\n${endMatter.glossary.map((entry) => `### ${entry.term}\n\n${entry.definition}`).join('\n\n')}`,
+      );
+    if (endMatter.indexTerms?.length) {
+      const lines = endMatter.indexTerms.map((term) => {
+        const pattern = new RegExp(`\\b${this.escapeRegExp(term)}\\b`, 'i');
+        const numbers = chapters
+          .filter((chapter) => pattern.test(chapter.content))
+          .map((chapter) => chapter.number);
+        return `- **${term}**: ${numbers.length ? numbers.join(', ') : '—'}`;
+      });
+      sections.push(`\n\n---\n\n<a id="index"></a>\n\n## Index\n\n${lines.join('\n')}`);
+    }
+    if (endMatter.references?.length)
+      sections.push(
+        `\n\n---\n\n<a id="bibliography--reference-list"></a>\n\n## Bibliography / Reference List\n\n${endMatter.references.map((reference) => `- ${reference.author ? `${reference.author}. ` : ''}${reference.url ? `[${reference.title}](${reference.url})` : reference.title}${reference.note ? ` — ${reference.note}` : ''}`).join('\n')}`,
+      );
+    if (endMatter.appendix?.length)
+      sections.push(
+        `\n\n---\n\n<a id="appendix"></a>\n\n## Appendix\n\n${endMatter.appendix.map((entry) => `### ${entry.title}\n\n${entry.content}`).join('\n\n')}`,
+      );
+    return sections.join('');
+  }
+
+  private escapeRegExp(value: string): string {
+    return value.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&');
   }
   private demoteHeadings(content: string): string {
     return content.replace(/^(#{1,5})\s+/gm, (_match, hashes: string) => `${hashes}# `);

@@ -105,7 +105,7 @@ export class ChapterGenerator {
       options.force === true,
     );
     await stateStore.save(state);
-    const resources = await this.loadResources();
+    const resources = await this.loadResources(options.bookId);
     const firstIncomplete = await this.firstIncompleteStage(state, artifacts);
     const resumed = Boolean(existing && firstIncomplete > 0 && !options.force);
 
@@ -164,14 +164,21 @@ export class ChapterGenerator {
     }
   }
 
-  private async loadResources(): Promise<PromptResources> {
+  private async loadResources(bookId: string): Promise<PromptResources> {
     const [styleGuide, writerPrompt, reviewerPrompt, rewriterPrompt] = await Promise.all([
       this.promptLoader.loadFile(this.styleGuidePath, 'style guide'),
       this.promptLoader.load('writer'),
       this.promptLoader.load('reviewer'),
       this.promptLoader.load('rewriter'),
     ]);
-    return { styleGuide, writerPrompt, reviewerPrompt, rewriterPrompt };
+    const bookPrompt = await this.promptLoader.loadOptional(bookId);
+    return {
+      styleGuide,
+      writerPrompt,
+      reviewerPrompt,
+      rewriterPrompt,
+      ...(bookPrompt ? { bookPrompt } : {}),
+    };
   }
 
   private async runWriter(

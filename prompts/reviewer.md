@@ -21,8 +21,10 @@ Check all of the following:
   are reported even when the surrounding prose is correct.
 - Technical claims are accurate, qualified when version-dependent, and free of
   fabricated benchmarks or citations.
-- Common mistakes, best practices, interview questions, and exercises are
-  specific and appropriate for the stated audience.
+- Common mistakes and best practices are specific and appropriate for the
+  stated audience. Review Interview Questions and Exercises only when the
+  corresponding book-level style flag is enabled; otherwise, do not recommend
+  adding those sections.
 - The prose follows the style guide and avoids filler or AI-like repetition.
 - The opening and ending fit this chapter rather than repeating a stock pattern
   from other chapters.
@@ -30,6 +32,16 @@ Check all of the following:
   definition → example → tradeoff → warning for every subsection.
 - Previous chapter summaries are used for continuity without reteaching prior
   concepts. Identify unnecessary recap and weak or missing transitions.
+- When a book story contract is supplied, verify that the chapter advances its
+  story beat using the same system, cast, vocabulary, and constraints. Flag
+  unrelated toy examples, abrupt resets, and missing handoffs to the next beat.
+- When a learning contract is supplied, judge whether the chapter moves the
+  reader toward the book promise. For tutorials, verify that commands, edits,
+  expected observations, and artifact paths are concrete and that the chapter
+  does not substitute generic interview questions or exercises for instruction.
+  Check every tutorial command, flag, path, state name, and expected artifact
+  against the supplied verified workflow steps; report invented or ambiguous
+  instructions as blocking tutorial defects.
 - Version caveats appear before the first version-sensitive claim or code fence,
   not only in a later general note.
 - Illustrative snippets clearly state omitted context. Standalone snippets show

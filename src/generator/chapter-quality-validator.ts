@@ -14,6 +14,8 @@ const requiredSections = [
 export interface ChapterQualityRequirements {
   title: string;
   targetWords: number;
+  includeInterviewQuestions?: boolean;
+  includeExercises?: boolean;
 }
 
 export class ChapterQualityValidator {
@@ -34,7 +36,12 @@ export class ChapterQualityValidator {
       );
     }
 
-    const missingSections = requiredSections.filter(
+    const sections = requiredSections.filter((section) => {
+      if (section === 'Interview Questions') return requirements.includeInterviewQuestions ?? true;
+      if (section === 'Exercises') return requirements.includeExercises ?? true;
+      return true;
+    });
+    const missingSections = sections.filter(
       (section) => !new RegExp(`^## ${this.escapeRegExp(section)}\\s*$`, 'm').test(content),
     );
     if (missingSections.length > 0) {

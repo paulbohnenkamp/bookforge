@@ -6,23 +6,60 @@ target word count, objectives, topics, and topics to avoid or defer. The style
 guide is authoritative for voice, structure, formatting, accuracy, and the
 quality bar.
 
+The requested output is the chapter's subject matter, not a description of
+BookForge or of the process used to generate the book. Do not turn a subject
+book into a meta-book about its YAML specification, prompts, chapters, or
+generation workflow. Treat the supplied book title, chapter title, objectives,
+topics, canonical example, and story contract as the content to teach.
+
 Before writing, turn every declared objective into content the reader can use.
 Cover the declared topics with explanations, tradeoffs, and relevant examples.
 Do not expand into topics marked to avoid or defer. Use previous chapter
 summaries only for lightweight continuity: state what the reader can carry
 forward, then add the new decision or skill. Do not reteach prior chapters.
 
-The normal chapter must include these sections, adapted only when the chapter
-type genuinely requires it:
+When a book story contract is supplied, it is mandatory continuity guidance.
+Use the named system, cast, and constraints across the chapter. Treat the
+chapter's story beat as the next scene in one developing engineering project:
+open with the decision, incident, or conversation relevant to that beat; use
+the same system vocabulary in examples; and close by handing a consequence or
+question to the next chapter. Do not replace the story with unrelated toy
+examples. A focused snippet is welcome, but explain how it changes the
+recurring system.
+
+When a learning contract is supplied, optimize for the reader's ability to use
+the subject. Establish prerequisites, teach only what supports the promise,
+and make every chapter produce a concrete capability or repository artifact.
+For tutorials, replace formal exercises with guided actions inside the prose:
+give the command or edit, state what the reader should observe, explain what
+that result means, and connect it to the next chapter. Do not add interview
+questions or exercise sections unless the book explicitly requires them.
+When verified workflow steps are supplied, reproduce their commands, expected
+observations, and artifact paths exactly; never invent package scripts, flags,
+directories, or state names.
+For a short repository tutorial, keep the chapter close to its configured
+target, use no more than three small code or command examples per major idea,
+and stop once the reader can perform the promised action. Do not pad the
+chapter with repeated lifecycle explanations, long conceptual digressions, or
+full source-file listings.
+
+The normal chapter should include these sections, except that the book-level
+style flags control the optional sections: include Interview Questions only
+when `interview questions=true`, and include Exercises only when
+`exercises=true`:
 
 1. Why This Matters
 2. Core Concepts
 3. Worked Examples
 4. Common Mistakes
 5. Best Practices
-6. Interview Questions with concise model answers
-7. Exercises with expected outcomes
+6. Interview Questions with concise model answers (when enabled)
+7. Exercises with expected outcomes (when enabled)
 8. Key Takeaways
+
+When an optional section is disabled, do not create an empty placeholder for it.
+Use the available space for topic-specific explanation, examples, tradeoffs, or
+a concise decision checklist appropriate to the audience.
 
 Treat the supplied target word count as a planning budget and a soft upper
 limit, not a quota. Aim for roughly 80–110% when the subject supports it, and
@@ -75,6 +112,13 @@ previous summaries for unnecessary repetition; count the code fences and major
 sections; remove duplicate explanations; verify that method names match their
 contracts; and confirm that every exercise has a clear expected outcome. Prefer
 one authoritative example over several near-equivalent snippets.
+
+When the supplied style is `concise executive`, write for a time-constrained
+business reader. Prefer one recurring example, short paragraphs, one compact
+comparison table at most, and no more than three subsections under Core
+Concepts or two worked-example subsections. Remove implementation detail,
+repeated caveats, and secondary examples. Aim for approximately 80–100% of the
+configured target word count; do not use extra explanation to fill space.
 
 Return raw Markdown only. Do not wrap the chapter in an outer code fence. Do
 not add a preface, postscript, generation commentary, citations you cannot

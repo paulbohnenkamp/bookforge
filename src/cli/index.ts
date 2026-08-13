@@ -21,6 +21,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { AtomicFileWriter } from '../generator/atomic-file-writer.js';
 import { PlaywrightPdfRenderer, defaultPdfCss } from '../export/pdf-renderer.js';
+import { EpubRenderer } from '../export/epub-renderer.js';
 
 interface GenerateCommandOptions {
   chapter?: string;
@@ -45,13 +46,16 @@ interface AssembleCommandOptions {
 }
 
 interface ExportCommandOptions {
-  format: 'zip' | 'pdf' | 'all';
+  format: 'zip' | 'pdf' | 'epub' | 'all';
   includeNeedsReview: boolean;
   from?: string;
   to?: string;
+  output?: string;
 }
 interface ReviewCommandOptions {
-  chapter: string;
+  chapter?: string;
+  from?: string;
+  to?: string;
   by?: string;
   notes?: string;
   reason?: string;
@@ -211,21 +215,30 @@ export function createCli(): Command {
     .command('approve')
     .description('Approve a chapter after human review')
     .argument('<bookId>')
-    .requiredOption('--chapter <number>')
+    .option('--chapter <number>', 'one-based chapter number')
+    .option('--from <number>', 'first one-based chapter number in a range')
+    .option('--to <number>', 'last one-based chapter number in a range')
     .option('--by <name>')
     .option('--notes <text>')
     .action(async (bookId: string, options: ReviewCommandOptions) => {
       const config = loadConfig(process.env);
+      const chapter = parsePositiveNumber(options.chapter, '--chapter');
+      const from = parsePositiveNumber(options.from, '--from');
+      const to = parsePositiveNumber(options.to, '--to');
+      if (chapter !== undefined && (from !== undefined || to !== undefined))
+        throw new AppError('--chapter cannot be combined with --from or --to.');
+      if (chapter === undefined && from === undefined && to === undefined)
+        throw new AppError('approve requires --chapter or --from/--to.');
+      const start = chapter ?? from ?? 1;
+      const end = chapter ?? to ?? (from === undefined ? start : undefined);
+      if (end === undefined) throw new AppError('approve requires --to when --from is provided.');
       await new HumanReviewService(
         new BookResolver(config.booksDirectory),
         config.generatedDirectory,
-      ).approve(
-        bookId,
-        parsePositiveNumber(options.chapter, '--chapter') ?? 0,
-        options.by,
-        options.notes,
+      ).approveRange(bookId, start, end, options.by, options.notes);
+      console.log(
+        start === end ? `Approved chapter ${start}.` : `Approved chapters ${start}-${end}.`,
       );
-      console.log(`Approved chapter ${options.chapter}.`);
     });
   program
     .command('reject')
@@ -351,6 +364,8 @@ export function createCli(): Command {
       const result = await new BookAssembler(
         new BookResolver(config.booksDirectory),
         config.generatedDirectory,
+        undefined,
+        config.publication,
       ).assemble({
         bookId,
         allowIncomplete: options.allowIncomplete,
@@ -365,9 +380,10 @@ export function createCli(): Command {
 
   program
     .command('export')
-    .description('Export the assembled book as PDF, ZIP, or both')
+    .description('Export the assembled book as PDF, EPUB, ZIP, or all formats')
     .argument('<bookId>', 'book identifier')
-    .option('--format <format>', 'pdf, zip, or all', 'zip')
+    .option('--format <format>', 'pdf, epub, zip, or all', 'zip')
+    .option('--output <path>', 'explicit EPUB output path')
     .option('--include-needs-review', 'export a draft that has not been human-approved')
     .option('--from <number>', 'first one-based chapter number to include')
     .option('--to <number>', 'last one-based chapter number to include')
@@ -377,18 +393,51 @@ export function createCli(): Command {
       const includeNeedsReview = options.includeNeedsReview === true;
       const from = parsePositiveNumber(options.from, '--from');
       const to = parsePositiveNumber(options.to, '--to');
-      await new BookAssembler(
-        new BookResolver(config.booksDirectory),
-        config.generatedDirectory,
-      ).assemble({
-        bookId,
-        includeNeedsReview,
-        ...(includeNeedsReview ? { allowIncomplete: true } : {}),
-        ...(from === undefined ? {} : { from }),
-        ...(to === undefined ? {} : { to }),
-      });
-      if (options.format !== 'pdf' && options.format !== 'zip' && options.format !== 'all')
-        throw new AppError('--format must be pdf, zip, or all.');
+      if (!['pdf', 'epub', 'zip', 'all'].includes(options.format))
+        throw new AppError('--format must be pdf, epub, zip, or all.');
+      if (options.format !== 'epub')
+        await new BookAssembler(
+          new BookResolver(config.booksDirectory),
+          config.generatedDirectory,
+          undefined,
+          config.publication,
+        ).assemble({
+          bookId,
+          includeNeedsReview,
+          ...(includeNeedsReview ? { allowIncomplete: true } : {}),
+          ...(from === undefined ? {} : { from }),
+          ...(to === undefined ? {} : { to }),
+        });
+      let epubPath: string | undefined;
+      const epubRequested =
+        options.format === 'epub' ||
+        options.format === 'all' ||
+        (options.format === 'zip' && resolved.book.output.epub);
+      if (epubRequested) {
+        epubPath =
+          options.output ??
+          path.join(
+            config.generatedDirectory,
+            bookId,
+            'exports',
+            `${filesystemSlug(resolved.book.book.title).toLowerCase()}.epub`,
+          );
+        const result = await new EpubRenderer(
+          new BookResolver(config.booksDirectory),
+          config.generatedDirectory,
+          process.cwd(),
+          config.publication,
+        ).render({
+          bookId,
+          outputPath: epubPath,
+          includeNeedsReview,
+          ...(from === undefined ? {} : { from }),
+          ...(to === undefined ? {} : { to }),
+        });
+        console.log(`Exported EPUB (${result.chapters.length} chapters): ${result.outputPath}`);
+      } else if (options.output) {
+        throw new AppError('--output can only be used with --format epub or --format all.');
+      }
       if (options.format === 'zip' || options.format === 'all') {
         const result = await new ZipExporter(
           new BookResolver(config.booksDirectory),
@@ -399,6 +448,7 @@ export function createCli(): Command {
           includeNeedsReview,
           ...(from === undefined ? {} : { from }),
           ...(to === undefined ? {} : { to }),
+          ...(epubPath ? { epubPath } : {}),
         });
         console.log(`Exported ${result.entries.length} entries: ${result.archivePath}`);
       }

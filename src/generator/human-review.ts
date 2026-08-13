@@ -13,6 +13,23 @@ export class HumanReviewService {
     private readonly generatedDirectory: string,
     private readonly writer = new AtomicFileWriter(),
   ) {}
+  public async approveRange(
+    bookId: string,
+    from: number,
+    to: number,
+    approver?: string,
+    notes?: string,
+  ): Promise<void> {
+    const resolved = await this.resolver.resolve(bookId, 1);
+    if (from < 1 || to > resolved.book.chapters.length)
+      throw new AppError(
+        `Chapter range ${from}-${to} is outside the book's 1-${resolved.book.chapters.length} range.`,
+      );
+    if (from > to)
+      throw new AppError(`Chapter range start ${from} cannot be greater than end ${to}.`);
+    for (let chapterNumber = from; chapterNumber <= to; chapterNumber += 1)
+      await this.approve(bookId, chapterNumber, approver, notes);
+  }
   public async approve(
     bookId: string,
     chapterNumber: number,

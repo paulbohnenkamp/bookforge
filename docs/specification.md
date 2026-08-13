@@ -14,6 +14,15 @@ The MVP has one purpose:
 
 Everything that does not directly contribute to that goal is postponed.
 
+## Generation intent
+
+The input specification is the contract for the book's subject matter. When a
+caller supplies an existing specification path, BookForge must validate and
+generate the chapters described by that file. It must not substitute a new
+book specification, change the requested book ID, or generate a meta-book about
+BookForge's YAML, prompts, or pipeline. Documentation about the engine is a
+separate output and is not part of normal book generation.
+
 ---
 
 # Success Criteria
@@ -112,6 +121,40 @@ output:
   markdown: true
   zip: true
 
+learning:
+  promise: What the reader will be able to use or build by the end.
+  prerequisites:
+    - Knowledge the reader must already have.
+  byTheEnd:
+    - Concrete capability one.
+    - Concrete capability two.
+    - Concrete capability three.
+  deferred:
+    - Important topics intentionally left for a later book.
+
+story:
+  title: The recurring project or system
+  premise: The situation the reader follows through the book.
+  cast:
+    - The people whose decisions recur in the examples.
+  constraints:
+    - The practical constraint that keeps the story coherent.
+
+endMatter:
+  glossary:
+    - term: Boundary
+      definition: A concise definition for the reader's reference.
+  indexTerms:
+    - Boundary
+  references:
+    - title: A verified source or book used in the book
+      author: Author or organization
+      url: https://example.com/source
+      note: Why the source is included.
+  appendix:
+    - title: Optional supporting material
+      content: Markdown content for the appendix.
+
 chapters:
   - id: introduction
     title: Modern Java in Context
@@ -138,9 +181,14 @@ chapters:
 
 Each chapter specification must include a stable `id`, a title, a positive
 `targetWords` value, 3–7 concrete `objectives`, and at least one `topics` entry.
-`topicsToAvoid` and `canonicalExample` are optional. The engine uses these fields
-to keep a book's scope and terminology in the editable prompt context; it does
-not contain technology-specific chapter logic.
+`topicsToAvoid`, `canonicalExample`, and `storyBeat` are optional. The optional
+book-level `story` keeps examples threaded across chapters. The optional
+`learning` contract defines the reader promise, prerequisites, end-state
+capabilities, and deliberate exclusions. The optional
+`endMatter` renders a glossary, generated index, bibliography/reference list,
+and appendix after the chapters during complete-book assembly. The engine uses
+these fields to keep a book's scope and terminology in the editable prompt
+context; it does not contain technology-specific chapter logic.
 ```
 
 ---
@@ -225,6 +273,10 @@ bookforge export modern-java --format zip --from 1 --to 3 --include-needs-review
 
 bookforge clean modern-java
 
+bookforge approve modern-java --chapter 2
+
+bookforge approve modern-java --from 1 --to 3
+
 ---
 
 # Coding Standards
@@ -300,6 +352,7 @@ M5
 - Explicit human approval and rejection
 - Approval-aware assembly and ZIP export
 - CLI PDF export through an isolated Playwright renderer
+- CLI responsive EPUB 3 export from approved Markdown
 
 M5
 
@@ -309,7 +362,6 @@ M5
 
 # Future (Not MVP)
 
-- EPUB
 - Web UI
 - Background jobs
 - Multiple providers

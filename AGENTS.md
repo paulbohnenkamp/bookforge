@@ -3,6 +3,13 @@
 BookForge is a generic book engine. Keep technology-specific behavior in YAML
 book specifications and editable prompt files, not in TypeScript modules.
 
+When a request names an existing `books/<id>/book.yaml` (including an `@` path
+reference), treat that file as authoritative and generate the book's subject
+matter from it. Do not create a replacement specification, rename the ID, or
+write a book about BookForge, YAML, or the generation workflow unless the user
+explicitly asks for documentation about BookForge. Resolve and validate the
+exact referenced path before generating content.
+
 - Use strict TypeScript, ESM, named exports, and constructor injection.
 - Keep modules small and test public behavior.
 - Validate untrusted YAML with Zod before using it.
